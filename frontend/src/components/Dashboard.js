@@ -171,22 +171,32 @@ export default function Dashboard({
     }
   };
 
-  const loadDocument = async (docId) => {
+  const loadDocument = async (docId, dbOverride = null) => {
+    const targetDb = dbOverride || selectedDatabase;
+    if (!targetDb) {
+      toast.error('No database selected');
+      return;
+    }
+    
     try {
       if (useDirect) {
         const response = await axios.get(
-          `${connection.url}/${selectedDatabase}/${docId}`,
+          `${connection.url}/${targetDb}/${docId}`,
           {
             headers: getAuthHeader(connection.username, connection.password),
           }
         );
         setDocumentContent(response.data);
         setSelectedDocument(docId);
+        // Update selected database if loading from different db
+        if (dbOverride && dbOverride !== selectedDatabase) {
+          setSelectedDatabase(dbOverride);
+        }
       } else {
         const response = await axios.get(`${API}/couchdb/document`, {
           params: {
             url: connection.url,
-            database: selectedDatabase,
+            database: targetDb,
             doc_id: docId,
             username: connection.username,
             password: connection.password,
@@ -195,6 +205,10 @@ export default function Dashboard({
         if (response.data.success) {
           setDocumentContent(response.data.document);
           setSelectedDocument(docId);
+          // Update selected database if loading from different db
+          if (dbOverride && dbOverride !== selectedDatabase) {
+            setSelectedDatabase(dbOverride);
+          }
         }
       }
     } catch (error) {

@@ -68,18 +68,8 @@ export default function Sidebar({
 
   const handleSelectDocument = async (doc) => {
     console.log('Selected doc:', doc, 'Current DB:', database);
-    // Check if document is from a different database
-    if (doc.database && doc.database !== database) {
-      console.log('Switching database from', database, 'to', doc.database);
-      // Switch database first
-      await onSwitchDatabase(doc.database);
-      // Small delay to let database switch complete
-      setTimeout(() => {
-        onSelectDocument(doc.docId);
-      }, 200);
-    } else {
-      onSelectDocument(doc.docId);
-    }
+    // Always pass the document's database to ensure correct loading
+    onSelectDocument(doc.docId, doc.database);
   };
 
   const handleSearchChange = (e) => {
@@ -119,7 +109,7 @@ export default function Sidebar({
   };
 
   const handleSelectFromSearch = (docId) => {
-    onSelectDocument(docId);
+    onSelectDocument(docId, database);
     setSearchQuery('');
     setSearchResults([]);
     setSearchOpen(false);
