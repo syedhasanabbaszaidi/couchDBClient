@@ -130,8 +130,6 @@ export default function Dashboard({
   const searchDocuments = async (searchQuery) => {
     if (!selectedDatabase) return [];
     
-    console.log('searchDocuments called with query:', searchQuery, 'in database:', selectedDatabase);
-    
     try {
       if (useDirect) {
         // Get all docs and filter client-side for better compatibility
@@ -146,12 +144,9 @@ export default function Dashboard({
           }
         );
         const allDocs = response.data.rows || [];
-        console.log('Total docs fetched:', allDocs.length);
-        const filtered = allDocs.filter(doc => 
-          doc.id.toLowerCase().includes(searchQuery.toLowerCase())
+        return allDocs.filter(doc => 
+          doc.id.toLowerCase().startsWith(searchQuery.toLowerCase())
         );
-        console.log('Filtered results (contains match):', filtered.length, filtered.map(d => d.id));
-        return filtered;
       } else {
         const response = await axios.get(`${API}/couchdb/documents`, {
           params: {
@@ -164,12 +159,9 @@ export default function Dashboard({
         });
         if (response.data.success) {
           const allDocs = response.data.data.rows || [];
-          console.log('Total docs fetched (proxy):', allDocs.length);
-          const filtered = allDocs.filter(doc => 
-            doc.id.toLowerCase().includes(searchQuery.toLowerCase())
+          return allDocs.filter(doc => 
+            doc.id.toLowerCase().startsWith(searchQuery.toLowerCase())
           );
-          console.log('Filtered results (contains match):', filtered.length, filtered.map(d => d.id));
-          return filtered;
         }
       }
     } catch (error) {
