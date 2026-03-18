@@ -170,7 +170,7 @@ export default function Dashboard({ connection, onDisconnect }) {
   };
 
   return (
-    <div className="h-screen w-screen flex flex-col overflow-hidden" data-testid="dashboard">
+    <div className="h-full w-full flex flex-col overflow-hidden" data-testid="dashboard">
       <TopBar
         databases={databases}
         selectedDatabase={selectedDatabase}
@@ -185,10 +185,11 @@ export default function Dashboard({ connection, onDisconnect }) {
           onSelectDocument={loadDocument}
           onNewDocument={() => {
             setSelectedDocument('new');
-            setDocumentContent({});
+            setDocumentContent(null);
           }}
           loading={loading}
           onRefresh={loadDocuments}
+          database={selectedDatabase}
         />
         <Editor
           document={documentContent}

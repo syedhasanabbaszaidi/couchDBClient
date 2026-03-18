@@ -4,14 +4,26 @@ A minimal, developer-focused CouchDB client for managing databases and documents
 
 ## Features
 
-- 🔌 **Connect to CouchDB** - Easy connection with URL and credentials
-- 📚 **Database Management** - Browse and switch between databases
+- 🔌 **Connect to CouchDB** - Easy connection with URL and credentials (default: localhost:9004)
+- 💾 **Saved Connections** - Save and manage multiple CouchDB connections
+- 📑 **Multi-Tab Support** - Open multiple connections side by side in tabs
+- 📚 **Database Management** - Browse and switch between databases with searchable dropdown
 - 📄 **Document Operations** - View, edit, create, and delete documents
-- 🔍 **Search by ID** - Quick document lookup
-- 💾 **JSON Editor** - Formatted JSON editing with validation
+- 🔍 **Smart Search** - Autocomplete search with recently opened documents
+- ⏱️ **Recent Documents** - Quick access to previously opened files
+- 🆕 **Auto UUID** - New documents auto-populated with `_id` UUID
+- 📥 **Download Documents** - Save documents locally as JSON files
+- 💾 **JSON Editor** - Formatted JSON editing with real-time validation
 - 🎨 **Minimal UI** - Clean, developer-focused interface
 - 💻 **Desktop Apps** - Package as Windows/Mac applications
 - 🌐 **Web App** - Use directly in browser
+
+## Documentation
+
+- 📖 **[Quick Start Guide](./QUICK_START.md)** - Get up and running in 60 seconds
+- 📚 **[Features Guide](./FEATURES_GUIDE.md)** - Complete feature documentation
+- 💻 **[Electron Setup](./ELECTRON_SETUP.md)** - Build desktop installers
+- 📋 **[README](./README.md)** - This file (overview & installation)
 
 ## Quick Start (Web App)
 
@@ -20,6 +32,7 @@ A minimal, developer-focused CouchDB client for managing databases and documents
 - Python 3.11+
 - Node.js 16+
 - CouchDB server running (local or remote)
+- For tunnel setup: CouchDB accessible at `localhost:9004`
 
 ### Installation
 
@@ -59,18 +72,35 @@ Navigate to `http://localhost:3000`
 
 ### Connecting to CouchDB
 
-1. Enter your CouchDB server URL (e.g., `http://127.0.0.1:5984`)
-2. Enter username and password (if authentication is enabled)
-3. Click **Connect**
-4. Recent connections are saved for quick access
+1. **Direct Connection**
+   - Enter your CouchDB server URL: `http://localhost:9004`
+   - Enter username and password (if authentication enabled)
+   - Click **Connect** or **Save** to store connection
+
+2. **Using Saved Connections**
+   - Previously saved connections appear on the right
+   - Click any saved connection to load details
+   - Enter password and connect
+
+3. **Multi-Tab Support**
+   - Click **+** in tab bar to add new connection
+   - Switch between multiple databases
+   - Each tab maintains its own state
+
+For detailed usage instructions, see [Quick Start Guide](./QUICK_START.md).
 
 ### Managing Documents
 
-- **Select Database**: Use the dropdown in the top bar
-- **Browse Documents**: Documents are listed in the left sidebar
-- **Search**: Type document ID in the search box
-- **Create New**: Click "New Document" button
-- **Edit**: Select a document, modify JSON, and click "Save"
+### Managing Documents
+
+- **Select Database**: Use the searchable dropdown in the top bar (type to filter)
+- **Browse Documents**: Listed in left sidebar
+- **Quick Access**: Recently opened documents appear at the top
+- **Search**: Type document ID in search box (autocomplete suggestions)
+- **Create New**: Click "New Document" (auto-generates `_id` with UUID)
+- **Edit**: Select document, modify JSON, click "Save"
+- **Download**: Click download icon to save as JSON file
+- **Copy ID**: Click copy icon to copy document ID to clipboard
 - **Delete**: Click trash icon when viewing a document
 
 ### JSON Editor

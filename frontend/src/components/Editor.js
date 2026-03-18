@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Save, RotateCw, Trash2, Copy, Check } from 'lucide-react';
+import { Save, RotateCw, Trash2, Copy, Check, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import {
@@ -12,6 +12,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+
+function generateUUID() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
 
 export default function Editor({
   document,
@@ -33,11 +41,17 @@ export default function Editor({
       setContent(formatted);
       setOriginalContent(formatted);
       setIsValid(true);
+    } else if (documentId === 'new') {
+      const newDoc = { "_id": generateUUID() };
+      const formatted = JSON.stringify(newDoc, null, 2);
+      setContent(formatted);
+      setOriginalContent('');
+      setIsValid(true);
     } else {
       setContent('');
       setOriginalContent('');
     }
-  }, [document]);
+  }, [document, documentId]);
 
   const handleContentChange = (e) => {
     const newContent = e.target.value;
@@ -91,6 +105,24 @@ export default function Editor({
     }
   };
 
+  const handleDownload = () => {
+    try {
+      const parsed = JSON.parse(content);
+      const blob = new Blob([JSON.stringify(parsed, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${documentId || 'document'}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('Document downloaded');
+    } catch (error) {
+      toast.error('Failed to download document');
+    }
+  };
+
   const hasChanges = content !== originalContent;
 
   if (!documentId) {
@@ -118,15 +150,26 @@ export default function Editor({
 
         <div className="flex items-center gap-2">
           {documentId !== 'new' && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleCopyId}
-              className="h-9 text-slate-600 hover:text-slate-900"
-              data-testid="copy-id-btn"
-            >
-              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-            </Button>
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDownload}
+                className="h-9 text-slate-600 hover:text-slate-900"
+                data-testid="download-btn"
+              >
+                <Download className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleCopyId}
+                className="h-9 text-slate-600 hover:text-slate-900"
+                data-testid="copy-id-btn"
+              >
+                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              </Button>
+            </>
           )}
           
           {hasChanges && (
