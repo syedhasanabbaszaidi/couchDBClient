@@ -16,7 +16,7 @@ export default function TopBar({
   connectionUrl,
 }) {
   return (
-    <div className="h-14 border-b border-slate-200 flex items-center px-4 bg-white z-10 flex-shrink-0" data-testid="topbar">
+    <div className="h-14 border-b border-slate-200 flex items-center px-4 bg-white z-20 flex-shrink-0" data-testid="topbar">
       <div className="flex items-center gap-2 mr-4">
         <Database className="w-5 h-5 text-orange-600" />
         <span className="text-sm font-semibold text-slate-900 font-heading">CouchDB Client</span>
