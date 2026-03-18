@@ -247,7 +247,6 @@ export default function Sidebar({
             </div>
             <div className="space-y-1">
               {recentDocuments.map((doc) => {
-                // Always compare using strict equality to determine if doc is from a different database
                 const isFromDifferentDb = doc.database !== database;
                 const isSelected = selectedDocument === doc.docId && doc.database === database;
                 
@@ -267,9 +266,9 @@ export default function Sidebar({
                   }`} />
                   <div className="flex-1 truncate text-left">
                     <span className="font-mono text-xs block truncate">{doc.docId}</span>
-                    {isFromDifferentDb && (
-                      <span className="text-xs text-orange-600 font-medium">{doc.database}</span>
-                    )}
+                    <span className={`text-xs font-medium ${isFromDifferentDb ? 'text-orange-600' : 'text-slate-400'}`}>
+                      {doc.database}
+                    </span>
                   </div>
                   {isFromDifferentDb && (
                     <span className="text-xs text-slate-400">↗</span>
