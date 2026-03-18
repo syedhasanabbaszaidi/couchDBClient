@@ -35,6 +35,10 @@ export default function Sidebar({
 
   useEffect(() => {
     loadRecentDocuments();
+    // Clear search when database changes
+    setSearchQuery('');
+    setSearchResults([]);
+    setSearchOpen(false);
     return () => {
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
@@ -54,6 +58,8 @@ export default function Sidebar({
     try {
       // Load ALL recent documents from all databases
       const allRecent = await getAllRecentDocuments();
+      console.log('All recent docs:', allRecent);
+      console.log('Current database:', database);
       setRecentDocuments(allRecent || []);
     } catch (error) {
       console.error('Failed to load recent documents:', error);
@@ -61,14 +67,16 @@ export default function Sidebar({
   };
 
   const handleSelectDocument = async (doc) => {
+    console.log('Selected doc:', doc, 'Current DB:', database);
     // Check if document is from a different database
-    if (doc.database !== database) {
+    if (doc.database && doc.database !== database) {
+      console.log('Switching database from', database, 'to', doc.database);
       // Switch database first
       await onSwitchDatabase(doc.database);
       // Small delay to let database switch complete
       setTimeout(() => {
         onSelectDocument(doc.docId);
-      }, 100);
+      }, 200);
     } else {
       onSelectDocument(doc.docId);
     }
@@ -92,7 +100,7 @@ export default function Sidebar({
     setIsSearching(true);
     searchTimeoutRef.current = setTimeout(async () => {
       try {
-        console.log('Searching for:', value);
+        console.log('Searching for:', value, 'in database:', database);
         const results = await onSearchDocuments(value);
         console.log('Search results:', results);
         setSearchResults(results || []);
@@ -107,7 +115,7 @@ export default function Sidebar({
         setIsSearching(false);
         setSearchOpen(false);
       }
-    }, 1500); // Reduced from 3000ms to 1500ms
+    }, 500); // Reduced from 1500ms to 500ms for faster feedback
   };
 
   const handleSelectFromSearch = (docId) => {
@@ -219,31 +227,37 @@ export default function Sidebar({
               <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Recently Opened</span>
             </div>
             <div className="space-y-1">
-              {recentDocuments.map((doc) => (
+              {recentDocuments.map((doc) => {
+                // Always compare using strict equality to determine if doc is from a different database
+                const isFromDifferentDb = doc.database !== database;
+                const isSelected = selectedDocument === doc.docId && doc.database === database;
+                
+                return (
                 <button
                   key={`${doc.database}-${doc.docId}`}
                   onClick={() => handleSelectDocument(doc)}
                   className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md cursor-pointer transition-all ${
-                    selectedDocument === doc.docId && database === doc.database
+                    isSelected
                       ? 'bg-blue-50 text-blue-900 shadow-sm border border-blue-200 font-medium'
                       : 'text-slate-600 hover:bg-slate-200/50 hover:text-slate-900'
                   }`}
                   data-testid={`recent-doc-${doc.docId}`}
                 >
                   <FileJson className={`w-4 h-4 flex-shrink-0 ${
-                    selectedDocument === doc.docId && database === doc.database ? 'text-blue-600' : ''
+                    isSelected ? 'text-blue-600' : ''
                   }`} />
                   <div className="flex-1 truncate text-left">
                     <span className="font-mono text-xs block truncate">{doc.docId}</span>
-                    {doc.database !== database && (
+                    {isFromDifferentDb && (
                       <span className="text-xs text-orange-600 font-medium">{doc.database}</span>
                     )}
                   </div>
-                  {doc.database !== database && (
+                  {isFromDifferentDb && (
                     <span className="text-xs text-slate-400">↗</span>
                   )}
                 </button>
-              ))}
+                );
+              })}
             </div>
           </div>
         ) : (

@@ -1,0 +1,57 @@
+{
+  "summary": "Testing of CouchDB Client MVP bug fixes completed. All 4 UI bugs have been verified as fixed in the code. Backend API tests: 11/11 passed. Frontend UI tests: 11/11 passed. Note: Full end-to-end testing of dashboard features requires a real CouchDB instance which is not available in this environment.",
+  "mode": "generate",
+  "baseline_commit": "185c1957c12476373d0c456a727dafa27842f460",
+  "head_commit": "185c1957c12476373d0c456a727dafa27842f460",
+  "specs_created": [
+    "/app/tests/e2e/connection-screen.spec.ts",
+    "/app/tests/e2e/dashboard-ui.spec.ts"
+  ],
+  "specs_updated": [],
+  "quarantined_tests": [],
+  "test_report_links": [
+    "/app/backend/tests/test_api.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "regression_results": {
+    "total_specs": 22,
+    "passed": 22,
+    "failed": 0,
+    "skipped": 0
+  },
+  "issues": [
+    {
+      "id": "IMP-001",
+      "issue_type": "improvement",
+      "severity": "MEDIUM",
+      "description": "Cannot fully test dashboard features (database selector, document search, recent documents with database name) without a real CouchDB connection. The code implementation has been verified but runtime behavior needs a CouchDB instance.",
+      "endpoint_or_component": "Dashboard, TopBar, Sidebar components"
+    }
+  ],
+  "action_items": [],
+  "updated_files": [
+    "/app/tests/playwright.config.ts",
+    "/app/tests/fixtures/helpers.ts",
+    "/app/tests/e2e/connection-screen.spec.ts",
+    "/app/tests/e2e/dashboard-ui.spec.ts",
+    "/app/backend/tests/conftest.py",
+    "/app/backend/tests/test_api.py"
+  ],
+  "test_results": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All 4 bug fixes verified in code: 1) TopBar.js handleSelect now clears state before selecting - line 86-99, 2) Sidebar.js clears search state when database changes - lines 37-41, 3) Dashboard.js searchDocuments uses .includes() for contains search - lines 147-149 and 162-163, 4) Sidebar.js shows database name for different databases using isFromDifferentDb logic - lines 231-257. Debounce reduced to 500ms in both TopBar.js line 83 and Sidebar.js line 118. Full runtime testing requires CouchDB instance.",
+  "code_verification_notes": {
+    "bug_1_db_name_on_recent_docs": "FIXED - Sidebar.js line 231-257: isFromDifferentDb = doc.database !== database, renders database name when true",
+    "bug_2_db_selection_second_click": "FIXED - TopBar.js handleSelect now immediately clears state and selects DB in single action (lines 86-99)",
+    "bug_3_search_not_scoped": "FIXED - Dashboard.js searchDocuments uses selectedDatabase as scope (line 131, 137, 154)",
+    "bug_4_search_starts_with_vs_contains": "FIXED - Dashboard.js uses .includes() on lines 148 and 163 for contains matching",
+    "debounce_db_selector": "FIXED - TopBar.js line 83: reduced from 3000ms to 500ms",
+    "debounce_doc_search": "FIXED - Sidebar.js line 118: reduced from 1500ms to 500ms",
+    "search_clear_on_db_change": "FIXED - Sidebar.js lines 37-41: useEffect clears search state when database prop changes"
+  }
+}
