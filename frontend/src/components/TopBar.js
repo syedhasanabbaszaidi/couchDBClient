@@ -22,6 +22,7 @@ export default function TopBar({
   onDisconnect,
   connectionUrl,
   connectionMode,
+  connectionStatus,
 }) {
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
@@ -30,7 +31,6 @@ export default function TopBar({
   const searchTimeoutRef = useRef(null);
 
   useEffect(() => {
-    // Clear timeout on unmount
     return () => {
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
@@ -42,19 +42,16 @@ export default function TopBar({
     const value = e.target.value;
     setInputValue(value);
     
-    // Clear previous timeout
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
 
-    // If input is cleared, close dropdown
     if (!value.trim()) {
       setOpen(false);
       setSearchResults([]);
       return;
     }
 
-    // Set new timeout for 3 seconds
     setIsSearching(true);
     searchTimeoutRef.current = setTimeout(async () => {
       const results = await onSearchDatabases(value);
@@ -80,6 +77,19 @@ export default function TopBar({
 
   const displayValue = selectedDatabase || inputValue;
 
+  // Determine status dot color
+  const getStatusColor = () => {
+    if (connectionStatus === 'connected') return 'bg-green-500';
+    if (connectionStatus === 'error') return 'bg-red-500';
+    return 'bg-yellow-500'; // checking
+  };
+
+  const getStatusTitle = () => {
+    if (connectionStatus === 'connected') return 'Connected';
+    if (connectionStatus === 'error') return 'Disconnected';
+    return 'Checking connection...';
+  };
+
   return (
     <div className="h-14 border-b border-slate-200 flex items-center px-4 bg-white z-20 flex-shrink-0" data-testid="topbar">
       <div className="flex items-center gap-2 mr-4">
@@ -93,55 +103,64 @@ export default function TopBar({
       </div>
 
       <div className="flex-1 flex items-center gap-3">
-        <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
-            <div className="relative w-64">
-              <Input
-                value={displayValue}
-                onChange={handleInputChange}
-                placeholder="Type database name..."
-                className="h-9 pr-8"
-                data-testid="database-selector"
-              />
-              {selectedDatabase && (
-                <button
-                  onClick={handleClear}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  data-testid="clear-database-btn"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-              {isSearching && (
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400">
-                  <div className="animate-spin h-4 w-4 border-2 border-slate-400 border-t-transparent rounded-full"></div>
-                </div>
-              )}
-            </div>
-          </PopoverTrigger>
-          <PopoverContent className="w-64 p-0" align="start">
-            <Command>
-              <CommandList>
-                {searchResults.length === 0 ? (
-                  <CommandEmpty>No database found. Keep typing...</CommandEmpty>
-                ) : (
-                  <CommandGroup>
-                    {searchResults.map((db) => (
-                      <CommandItem
-                        key={db}
-                        value={db}
-                        onSelect={() => handleSelect(db)}
-                        data-testid={`database-option-${db}`}
-                      >
-                        {db}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
+        <div className="flex items-center gap-2">
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+              <div className="relative w-64">
+                <Input
+                  value={displayValue}
+                  onChange={handleInputChange}
+                  placeholder="Type database name..."
+                  className="h-9 pr-8"
+                  data-testid="database-selector"
+                />
+                {selectedDatabase && (
+                  <button
+                    onClick={handleClear}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    data-testid="clear-database-btn"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 )}
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
+                {isSearching && (
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400">
+                    <div className="animate-spin h-4 w-4 border-2 border-slate-400 border-t-transparent rounded-full"></div>
+                  </div>
+                )}
+              </div>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-0" align="start">
+              <Command>
+                <CommandList>
+                  {searchResults.length === 0 ? (
+                    <CommandEmpty>No database found. Keep typing...</CommandEmpty>
+                  ) : (
+                    <CommandGroup>
+                      {searchResults.map((db) => (
+                        <CommandItem
+                          key={db}
+                          value={db}
+                          onSelect={() => handleSelect(db)}
+                          data-testid={`database-option-${db}`}
+                        >
+                          {db}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  )}
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+
+          {/* Connection status indicator */}
+          <div 
+            className={`w-3 h-3 rounded-full ${getStatusColor()} shadow-sm`}
+            title={getStatusTitle()}
+            data-testid="connection-status-indicator"
+          />
+        </div>
         
         <span className="text-xs text-slate-500 font-mono">{connectionUrl}</span>
       </div>

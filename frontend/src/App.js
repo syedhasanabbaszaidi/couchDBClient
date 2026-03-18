@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import '@/App.css';
 import { Toaster } from '@/components/ui/sonner';
 import ConnectionScreen from '@/components/ConnectionScreen';
@@ -8,20 +8,8 @@ function App() {
   const [connections, setConnections] = useState([]);
   const [activeTabId, setActiveTabId] = useState(null);
   
-  useEffect(() => {
-    const savedTabs = localStorage.getItem('couchdb_tabs');
-    if (savedTabs) {
-      try {
-        const parsed = JSON.parse(savedTabs);
-        if (parsed.length > 0) {
-          setConnections(parsed);
-          setActiveTabId(parsed[0].id);
-        }
-      } catch (e) {
-        console.error('Failed to parse saved tabs', e);
-      }
-    }
-  }, []);
+  // Always start with connection screen - don't auto-restore tabs
+  // This ensures fresh connections with passwords
 
   const handleConnect = (connectionData) => {
     const newConnection = {
@@ -30,23 +18,13 @@ function App() {
       url: connectionData.url,
       username: connectionData.username,
       password: connectionData.password,
+      connectedAt: new Date().toISOString(),
+      isActive: true,
     };
     
     const updated = [...connections, newConnection];
     setConnections(updated);
     setActiveTabId(newConnection.id);
-    
-    // Save tabs (without passwords for security)
-    const toSave = updated.map(c => ({
-      id: c.id,
-      name: c.name,
-      url: c.url,
-      username: c.username,
-    }));
-    localStorage.setItem('couchdb_tabs', JSON.stringify(toSave));
-    
-    // Save full connection with password temporarily
-    localStorage.setItem(`connection_${newConnection.id}`, JSON.stringify(newConnection));
   };
 
   const handleCloseTab = (tabId) => {
@@ -58,19 +36,24 @@ function App() {
     } else if (filtered.length === 0) {
       setActiveTabId(null);
     }
-    
-    const toSave = filtered.map(c => ({
-      id: c.id,
-      name: c.name,
-      url: c.url,
-      username: c.username,
-    }));
-    localStorage.setItem('couchdb_tabs', JSON.stringify(toSave));
-    localStorage.removeItem(`connection_${tabId}`);
   };
 
   const handleSwitchTab = (tabId) => {
     setActiveTabId(tabId);
+  };
+
+  const handleConnectionError = (tabId) => {
+    // Mark connection as inactive when error occurs
+    setConnections(prev => prev.map(conn => 
+      conn.id === tabId ? { ...conn, isActive: false } : conn
+    ));
+  };
+
+  const handleConnectionSuccess = (tabId) => {
+    // Mark connection as active when successful
+    setConnections(prev => prev.map(conn => 
+      conn.id === tabId ? { ...conn, isActive: true } : conn
+    ));
   };
 
   return (
@@ -84,6 +67,8 @@ function App() {
           onSwitchTab={handleSwitchTab}
           onCloseTab={handleCloseTab}
           onNewConnection={handleConnect}
+          onConnectionError={handleConnectionError}
+          onConnectionSuccess={handleConnectionSuccess}
         />
       )}
       <Toaster position="top-right" />

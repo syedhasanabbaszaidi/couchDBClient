@@ -23,11 +23,45 @@ function isLocalhost(url) {
   return url.includes('localhost') || url.includes('127.0.0.1');
 }
 
-export default function Dashboard({ connection, onDisconnect }) {
+export default function Dashboard({ 
+  connection, 
+  onDisconnect, 
+  onConnectionError,
+  onConnectionSuccess 
+}) {
   const [selectedDatabase, setSelectedDatabase] = useState('');
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [documentContent, setDocumentContent] = useState(null);
+  const [connectionStatus, setConnectionStatus] = useState('checking');
   const useDirect = isLocalhost(connection.url);
+
+  // Check connection health on mount
+  useEffect(() => {
+    checkConnection();
+  }, []);
+
+  const checkConnection = async () => {
+    try {
+      if (useDirect) {
+        await axios.get(connection.url, {
+          headers: getAuthHeader(connection.username, connection.password),
+          timeout: 5000,
+        });
+      } else {
+        await axios.post(`${API}/couchdb/test-connection`, {
+          url: connection.url,
+          username: connection.username,
+          password: connection.password,
+        }, { timeout: 5000 });
+      }
+      setConnectionStatus('connected');
+      onConnectionSuccess();
+    } catch (error) {
+      setConnectionStatus('error');
+      onConnectionError();
+      toast.error('Connection lost or invalid');
+    }
+  };
 
   // Search databases function (called by TopBar)
   const searchDatabases = async (searchQuery) => {
@@ -37,6 +71,7 @@ export default function Dashboard({ connection, onDisconnect }) {
           headers: getAuthHeader(connection.username, connection.password),
         });
         const allDbs = response.data.filter(db => !db.startsWith('_'));
+        onConnectionSuccess();
         return allDbs.filter(db => 
           db.toLowerCase().includes(searchQuery.toLowerCase())
         );
@@ -49,6 +84,7 @@ export default function Dashboard({ connection, onDisconnect }) {
           },
         });
         if (response.data.success) {
+          onConnectionSuccess();
           const allDbs = response.data.databases.filter(db => !db.startsWith('_'));
           return allDbs.filter(db => 
             db.toLowerCase().includes(searchQuery.toLowerCase())
@@ -57,7 +93,8 @@ export default function Dashboard({ connection, onDisconnect }) {
       }
     } catch (error) {
       console.error('Failed to search databases:', error);
-      toast.error('Failed to search databases');
+      onConnectionError();
+      toast.error('Failed to search databases - connection may be lost');
       return [];
     }
   };
@@ -259,6 +296,7 @@ export default function Dashboard({ connection, onDisconnect }) {
         onDisconnect={onDisconnect}
         connectionUrl={connection.url}
         connectionMode={useDirect ? 'Direct' : 'Proxy'}
+        connectionStatus={connectionStatus}
       />
       <div className="flex-1 flex overflow-hidden">
         <Sidebar

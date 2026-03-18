@@ -5,7 +5,15 @@ import Dashboard from '@/components/Dashboard';
 import ConnectionScreen from '@/components/ConnectionScreen';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 
-export default function TabManager({ connections, activeTabId, onSwitchTab, onCloseTab, onNewConnection }) {
+export default function TabManager({ 
+  connections, 
+  activeTabId, 
+  onSwitchTab, 
+  onCloseTab, 
+  onNewConnection,
+  onConnectionError,
+  onConnectionSuccess 
+}) {
   const [showNewConnection, setShowNewConnection] = useState(false);
 
   const activeConnection = connections.find(c => c.id === activeTabId);
@@ -28,6 +36,13 @@ export default function TabManager({ connections, activeTabId, onSwitchTab, onCl
             }`}
             data-testid={`tab-${conn.id}`}
           >
+            {/* Connection status indicator */}
+            <div 
+              className={`w-2 h-2 rounded-full ${
+                conn.isActive ? 'bg-green-500' : 'bg-red-500'
+              }`}
+              title={conn.isActive ? 'Connected' : 'Disconnected'}
+            />
             <button
               onClick={() => onSwitchTab(conn.id)}
               className="text-xs font-medium truncate max-w-32"
@@ -70,6 +85,8 @@ export default function TabManager({ connections, activeTabId, onSwitchTab, onCl
             key={activeConnection.id}
             connection={activeConnection}
             onDisconnect={() => onCloseTab(activeConnection.id)}
+            onConnectionError={() => onConnectionError(activeConnection.id)}
+            onConnectionSuccess={() => onConnectionSuccess(activeConnection.id)}
           />
         )}
       </div>
