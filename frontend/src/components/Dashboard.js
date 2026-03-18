@@ -127,26 +127,26 @@ export default function Dashboard({
   };
 
   // Search documents function (called by Sidebar)
+  // Uses CouchDB's startkey/endkey for efficient server-side filtering
   const searchDocuments = async (searchQuery) => {
     if (!selectedDatabase) return [];
     
     try {
       if (useDirect) {
-        // Get all docs and filter client-side for better compatibility
+        // Use startkey/endkey for server-side "startsWith" filtering
         const response = await axios.get(
           `${connection.url}/${selectedDatabase}/_all_docs`,
           {
             headers: getAuthHeader(connection.username, connection.password),
             params: { 
               include_docs: false, 
-              limit: 1000,
+              startkey: JSON.stringify(searchQuery),
+              endkey: JSON.stringify(searchQuery + '\ufff0'),
+              limit: 100,
             },
           }
         );
-        const allDocs = response.data.rows || [];
-        return allDocs.filter(doc => 
-          doc.id.toLowerCase().startsWith(searchQuery.toLowerCase())
-        );
+        return response.data.rows || [];
       } else {
         const response = await axios.get(`${API}/couchdb/documents`, {
           params: {
@@ -154,14 +154,13 @@ export default function Dashboard({
             database: selectedDatabase,
             username: connection.username,
             password: connection.password,
-            limit: 1000,
+            startkey: searchQuery,
+            endkey: searchQuery + '\ufff0',
+            limit: 100,
           },
         });
         if (response.data.success) {
-          const allDocs = response.data.data.rows || [];
-          return allDocs.filter(doc => 
-            doc.id.toLowerCase().startsWith(searchQuery.toLowerCase())
-          );
+          return response.data.data.rows || [];
         }
       }
     } catch (error) {

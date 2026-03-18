@@ -52,13 +52,19 @@ app.get('/api/couchdb/databases', async (req, res) => {
 // List documents
 app.get('/api/couchdb/documents', async (req, res) => {
   try {
-    const { url, database, username, password, limit = 100, skip = 0 } = req.query;
+    const { url, database, username, password, limit = 100, skip = 0, startkey, endkey } = req.query;
     const headers = getAuthHeader(username, password);
+    const params = { include_docs: false, limit, skip };
+    
+    // Add startkey/endkey for server-side filtering if provided
+    if (startkey) params.startkey = JSON.stringify(startkey);
+    if (endkey) params.endkey = JSON.stringify(endkey);
+    
     const response = await axios.get(
       `${url}/${database}/_all_docs`,
       {
         headers,
-        params: { include_docs: false, limit, skip },
+        params,
         timeout: 10000
       }
     );
