@@ -132,19 +132,21 @@ export default function Dashboard({
     
     try {
       if (useDirect) {
+        // Get all docs and filter client-side for better compatibility
         const response = await axios.get(
           `${connection.url}/${selectedDatabase}/_all_docs`,
           {
             headers: getAuthHeader(connection.username, connection.password),
             params: { 
               include_docs: false, 
-              limit: 50,
-              startkey: `"${searchQuery}"`,
-              endkey: `"${searchQuery}\ufff0"`
+              limit: 1000,
             },
           }
         );
-        return response.data.rows || [];
+        const allDocs = response.data.rows || [];
+        return allDocs.filter(doc => 
+          doc.id.toLowerCase().includes(searchQuery.toLowerCase())
+        );
       } else {
         const response = await axios.get(`${API}/couchdb/documents`, {
           params: {
@@ -152,7 +154,7 @@ export default function Dashboard({
             database: selectedDatabase,
             username: connection.username,
             password: connection.password,
-            limit: 50,
+            limit: 1000,
           },
         });
         if (response.data.success) {
@@ -164,6 +166,7 @@ export default function Dashboard({
       }
     } catch (error) {
       console.error('Failed to search documents:', error);
+      toast.error('Failed to search documents');
       return [];
     }
   };
