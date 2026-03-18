@@ -24,38 +24,24 @@ function isLocalhost(url) {
 }
 
 export default function Dashboard({ connection, onDisconnect }) {
-  const [databases, setDatabases] = useState([]);
   const [selectedDatabase, setSelectedDatabase] = useState('');
-  const [documents, setDocuments] = useState([]);
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [documentContent, setDocumentContent] = useState(null);
-  const [loading, setLoading] = useState(false);
   const useDirect = isLocalhost(connection.url);
 
-  useEffect(() => {
-    loadDatabases();
-  }, []);
-
-  useEffect(() => {
-    if (selectedDatabase) {
-      loadDocuments();
-    }
-  }, [selectedDatabase]);
-
-  const loadDatabases = async () => {
+  // Search databases function (called by TopBar)
+  const searchDatabases = async (searchQuery) => {
     try {
       if (useDirect) {
-        // Direct connection to CouchDB
         const response = await axios.get(`${connection.url}/_all_dbs`, {
           headers: getAuthHeader(connection.username, connection.password),
         });
-        const dbs = response.data.filter(db => !db.startsWith('_'));
-        setDatabases(dbs);
-        if (dbs.length > 0 && !selectedDatabase) {
-          setSelectedDatabase(dbs[0]);
-        }
+        const allDbs = response.data.filter(db => !db.startsWith('_'));
+        // Filter by search query
+        return allDbs.filter(db => 
+          db.toLowerCase().includes(searchQuery.toLowerCase())
+        );
       } else {
-        // Use backend proxy
         const response = await axios.get(`${API}/couchdb/databases`, {
           params: {
             url: connection.url,
@@ -64,52 +50,16 @@ export default function Dashboard({ connection, onDisconnect }) {
           },
         });
         if (response.data.success) {
-          const dbs = response.data.databases.filter(db => !db.startsWith('_'));
-          setDatabases(dbs);
-          if (dbs.length > 0 && !selectedDatabase) {
-            setSelectedDatabase(dbs[0]);
-          }
+          const allDbs = response.data.databases.filter(db => !db.startsWith('_'));
+          return allDbs.filter(db => 
+            db.toLowerCase().includes(searchQuery.toLowerCase())
+          );
         }
       }
     } catch (error) {
-      console.error('Failed to load databases:', error);
-      toast.error('Failed to load databases');
-    }
-  };
-
-  const loadDocuments = async () => {
-    if (!selectedDatabase) return;
-    
-    setLoading(true);
-    try {
-      if (useDirect) {
-        const response = await axios.get(
-          `${connection.url}/${selectedDatabase}/_all_docs`,
-          {
-            headers: getAuthHeader(connection.username, connection.password),
-            params: { include_docs: false, limit: 100 },
-          }
-        );
-        setDocuments(response.data.rows || []);
-      } else {
-        const response = await axios.get(`${API}/couchdb/documents`, {
-          params: {
-            url: connection.url,
-            database: selectedDatabase,
-            username: connection.username,
-            password: connection.password,
-            limit: 100,
-          },
-        });
-        if (response.data.success) {
-          setDocuments(response.data.data.rows || []);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load documents:', error);
-      toast.error('Failed to load documents');
-    } finally {
-      setLoading(false);
+      console.error('Failed to search databases:', error);
+      toast.error('Failed to search databases');
+      return [];
     }
   };
 
@@ -160,7 +110,6 @@ export default function Dashboard({ connection, onDisconnect }) {
         );
         toast.success('Document saved successfully');
         setDocumentContent({ ...content, _rev: response.data.rev });
-        loadDocuments();
       } else {
         const response = await axios.put(
           `${API}/couchdb/document`,
@@ -178,7 +127,6 @@ export default function Dashboard({ connection, onDisconnect }) {
         if (response.data.success) {
           toast.success('Document saved successfully');
           setDocumentContent({ ...content, _rev: response.data.data.rev });
-          loadDocuments();
         }
       }
     } catch (error) {
@@ -201,7 +149,6 @@ export default function Dashboard({ connection, onDisconnect }) {
           }
         );
         toast.success('Document created successfully');
-        loadDocuments();
         loadDocument(response.data.id);
       } else {
         const response = await axios.post(
@@ -218,7 +165,6 @@ export default function Dashboard({ connection, onDisconnect }) {
         );
         if (response.data.success) {
           toast.success('Document created successfully');
-          loadDocuments();
           loadDocument(response.data.data.id);
         }
       }
@@ -240,7 +186,6 @@ export default function Dashboard({ connection, onDisconnect }) {
         toast.success('Document deleted successfully');
         setSelectedDocument(null);
         setDocumentContent(null);
-        loadDocuments();
       } else {
         const response = await axios.delete(`${API}/couchdb/document`, {
           params: {
@@ -256,7 +201,6 @@ export default function Dashboard({ connection, onDisconnect }) {
           toast.success('Document deleted successfully');
           setSelectedDocument(null);
           setDocumentContent(null);
-          loadDocuments();
         }
       }
     } catch (error) {
@@ -268,24 +212,21 @@ export default function Dashboard({ connection, onDisconnect }) {
   return (
     <div className="h-full w-full flex flex-col overflow-hidden" data-testid="dashboard">
       <TopBar
-        databases={databases}
         selectedDatabase={selectedDatabase}
         onSelectDatabase={setSelectedDatabase}
+        onSearchDatabases={searchDatabases}
         onDisconnect={onDisconnect}
         connectionUrl={connection.url}
         connectionMode={useDirect ? 'Direct' : 'Proxy'}
       />
       <div className="flex-1 flex overflow-hidden">
         <Sidebar
-          documents={documents}
           selectedDocument={selectedDocument}
           onSelectDocument={loadDocument}
           onNewDocument={() => {
             setSelectedDocument('new');
             setDocumentContent(null);
           }}
-          loading={loading}
-          onRefresh={loadDocuments}
           database={selectedDatabase}
         />
         <Editor

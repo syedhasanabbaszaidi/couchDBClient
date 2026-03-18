@@ -33,6 +33,7 @@ export default function Editor({
   const [originalContent, setOriginalContent] = useState('');
   const [isValid, setIsValid] = useState(true);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showFinalDeleteDialog, setShowFinalDeleteDialog] = useState(false);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -89,10 +90,19 @@ export default function Editor({
     toast.info('Changes reverted');
   };
 
-  const handleDelete = () => {
+  const handleDeleteClick = () => {
+    setShowDeleteDialog(true);
+  };
+
+  const handleFirstConfirm = () => {
+    setShowDeleteDialog(false);
+    setShowFinalDeleteDialog(true);
+  };
+
+  const handleFinalDelete = () => {
     if (document && document._rev) {
       onDelete(documentId, document._rev);
-      setShowDeleteDialog(false);
+      setShowFinalDeleteDialog(false);
     }
   };
 
@@ -111,8 +121,14 @@ export default function Editor({
 
   const handleDownload = () => {
     try {
+      if (!content || content.trim() === '') {
+        toast.error('No content to download');
+        return;
+      }
+
       const parsed = JSON.parse(content);
-      const blob = new Blob([JSON.stringify(parsed, null, 2)], { type: 'application/json' });
+      const jsonString = JSON.stringify(parsed, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -121,9 +137,10 @@ export default function Editor({
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      toast.success('Document downloaded');
+      toast.success('Document downloaded successfully');
     } catch (error) {
-      toast.error('Failed to download document');
+      console.error('Download error:', error);
+      toast.error('Failed to download document: ' + error.message);
     }
   };
 
@@ -207,7 +224,7 @@ export default function Editor({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setShowDeleteDialog(true)}
+              onClick={handleDeleteClick}
               className="h-9 text-red-600 hover:text-red-700 hover:bg-red-50"
               data-testid="delete-document-btn"
             >
@@ -238,22 +255,55 @@ export default function Editor({
         </div>
       )}
 
+      {/* First delete confirmation */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Document</AlertDialogTitle>
+            <AlertDialogTitle>Delete Document?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this document? This action cannot be undone.
+              Are you sure you want to delete this document?
+              <br />
+              <span className="font-mono text-xs bg-slate-100 px-2 py-1 rounded mt-2 inline-block">
+                {documentId}
+              </span>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel data-testid="delete-cancel-btn">Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-red-600 hover:bg-red-700"
-              data-testid="delete-confirm-btn"
+              onClick={handleFirstConfirm}
+              className="bg-orange-600 hover:bg-orange-700"
+              data-testid="delete-first-confirm-btn"
             >
-              Delete
+              Yes, Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Second delete confirmation */}
+      <AlertDialog open={showFinalDeleteDialog} onOpenChange={setShowFinalDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-600">⚠️ Final Confirmation</AlertDialogTitle>
+            <AlertDialogDescription>
+              <span className="font-semibold text-slate-900">This action cannot be undone!</span>
+              <br />
+              <br />
+              The document will be permanently deleted from the database.
+              <br />
+              <br />
+              Document: <span className="font-mono text-xs bg-slate-100 px-2 py-1 rounded">{documentId}</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="delete-final-cancel-btn">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleFinalDelete}
+              className="bg-red-600 hover:bg-red-700"
+              data-testid="delete-final-confirm-btn"
+            >
+              Delete Permanently
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

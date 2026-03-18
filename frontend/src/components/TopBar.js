@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Database, LogOut, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,47 +16,69 @@ import {
 } from '@/components/ui/popover';
 
 export default function TopBar({
-  databases,
   selectedDatabase,
   onSelectDatabase,
+  onSearchDatabases,
   onDisconnect,
   connectionUrl,
   connectionMode,
 }) {
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    // Clear timeout on unmount
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    setInputValue(value);
+    
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // If input is cleared, close dropdown
+    if (!value.trim()) {
+      setOpen(false);
+      setSearchResults([]);
+      return;
+    }
+
+    // Set new timeout for 3 seconds
+    setIsSearching(true);
+    searchTimeoutRef.current = setTimeout(async () => {
+      const results = await onSearchDatabases(value);
+      setSearchResults(results || []);
+      setIsSearching(false);
+      setOpen(true);
+    }, 3000);
+  };
 
   const handleSelect = (db) => {
     onSelectDatabase(db);
     setInputValue('');
-    setIsTyping(false);
+    setSearchResults([]);
     setOpen(false);
   };
 
   const handleClear = () => {
     onSelectDatabase('');
     setInputValue('');
-    setIsTyping(false);
+    setSearchResults([]);
+    setOpen(false);
   };
 
-  const handleInputChange = (e) => {
-    const value = e.target.value;
-    setInputValue(value);
-    setIsTyping(true);
-    setOpen(true);
-    // If user starts typing, clear the selection
-    if (selectedDatabase) {
-      onSelectDatabase('');
-    }
-  };
-
-  const displayValue = isTyping ? inputValue : (selectedDatabase || inputValue);
-  const searchValue = isTyping ? inputValue : '';
-  
-  const filteredDatabases = databases.filter(db =>
-    db.toLowerCase().includes(searchValue.toLowerCase())
-  );
+  const displayValue = selectedDatabase || inputValue;
 
   return (
     <div className="h-14 border-b border-slate-200 flex items-center px-4 bg-white z-20 flex-shrink-0" data-testid="topbar">
@@ -77,12 +99,11 @@ export default function TopBar({
               <Input
                 value={displayValue}
                 onChange={handleInputChange}
-                onFocus={() => setOpen(true)}
                 placeholder="Type database name..."
                 className="h-9 pr-8"
                 data-testid="database-selector"
               />
-              {selectedDatabase && !isTyping && (
+              {selectedDatabase && (
                 <button
                   onClick={handleClear}
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
@@ -91,24 +112,32 @@ export default function TopBar({
                   <X className="w-4 h-4" />
                 </button>
               )}
+              {isSearching && (
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400">
+                  <div className="animate-spin h-4 w-4 border-2 border-slate-400 border-t-transparent rounded-full"></div>
+                </div>
+              )}
             </div>
           </PopoverTrigger>
           <PopoverContent className="w-64 p-0" align="start">
             <Command>
               <CommandList>
-                <CommandEmpty>No database found.</CommandEmpty>
-                <CommandGroup>
-                  {filteredDatabases.map((db) => (
-                    <CommandItem
-                      key={db}
-                      value={db}
-                      onSelect={() => handleSelect(db)}
-                      data-testid={`database-option-${db}`}
-                    >
-                      {db}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
+                {searchResults.length === 0 ? (
+                  <CommandEmpty>No database found. Keep typing...</CommandEmpty>
+                ) : (
+                  <CommandGroup>
+                    {searchResults.map((db) => (
+                      <CommandItem
+                        key={db}
+                        value={db}
+                        onSelect={() => handleSelect(db)}
+                        data-testid={`database-option-${db}`}
+                      >
+                        {db}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                )}
               </CommandList>
             </Command>
           </PopoverContent>
