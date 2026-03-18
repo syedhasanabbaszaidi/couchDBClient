@@ -252,7 +252,7 @@ export default function Editor({
           <Button
             onClick={handleSave}
             disabled={!hasChanges || !isValid}
-            className="h-9 bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 hover:from-pink-600 hover:via-purple-600 hover:to-blue-600 text-white font-semibold shadow-lg"
+            className="h-9 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md"
             data-testid="save-document-btn"
           >
             <Save className="w-4 h-4 mr-2" />
@@ -275,7 +275,8 @@ export default function Editor({
 
       <div className="flex-1 overflow-auto p-4">
         {viewMode === 'formatted' && parsedJson && isValid ? (
-          <div className="bg-slate-50 p-4 rounded-md">
+          <div className="bg-slate-50 p-4 rounded-md space-y-2">
+            <div className="text-xs text-slate-500 mb-2">Click "Raw JSON" button above to edit, or copy and paste to external editor</div>
             <JsonView 
               data={parsedJson} 
               shouldExpandNode={() => true}
