@@ -59,6 +59,7 @@ Build a Minimum Viable Product (MVP) of a CouchDB client tool that allows users 
 - ✅ Document CRUD operations (create, read, update, delete)
 - ✅ Connection status indicator
 - ✅ Electron setup for desktop builds
+- ✅ Clear recent documents button in sidebar
 
 ### Bug Fixes (March 18, 2026)
 - ✅ Fixed: After switching DB, first recent doc now shows database name

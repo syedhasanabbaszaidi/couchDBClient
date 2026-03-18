@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, FileJson, Clock, Search } from 'lucide-react';
+import { Plus, FileJson, Clock, Search, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -15,7 +15,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { getRecentDocuments, getAllRecentDocuments, addRecentDocument } from '@/lib/localDB';
+import { getRecentDocuments, getAllRecentDocuments, addRecentDocument, clearRecentDocuments } from '@/lib/localDB';
 
 export default function Sidebar({
   selectedDocument,
@@ -135,6 +135,15 @@ export default function Sidebar({
     }
   };
 
+  const handleClearRecentDocuments = async () => {
+    try {
+      await clearRecentDocuments();
+      setRecentDocuments([]);
+    } catch (error) {
+      console.error('Failed to clear recent documents:', error);
+    }
+  };
+
   if (!database) {
     return (
       <div className="w-72 bg-slate-50 border-r border-slate-200 flex flex-col overflow-hidden flex-shrink-0" data-testid="sidebar">
@@ -222,9 +231,19 @@ export default function Sidebar({
       <ScrollArea className="flex-1">
         {recentDocuments.length > 0 ? (
           <div className="p-2">
-            <div className="flex items-center gap-1 px-2 py-2 mb-1">
-              <Clock className="w-3 h-3 text-slate-400" />
-              <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Recently Opened</span>
+            <div className="flex items-center justify-between px-2 py-2 mb-1">
+              <div className="flex items-center gap-1">
+                <Clock className="w-3 h-3 text-slate-400" />
+                <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Recently Opened</span>
+              </div>
+              <button
+                onClick={handleClearRecentDocuments}
+                className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                title="Clear recent documents"
+                data-testid="clear-recent-docs-btn"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
             </div>
             <div className="space-y-1">
               {recentDocuments.map((doc) => {
