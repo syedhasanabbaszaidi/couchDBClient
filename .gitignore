@@ -30,3 +30,7 @@ yarn-error.log*
 .cache/
 *.cache
 electron/node_modules/electron/dist/electron
+-e 
+# Environment files
+*.env
+*.env.*
