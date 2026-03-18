@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Database, LogOut, Check, ChevronsUpDown } from 'lucide-react';
+import { Database, LogOut, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Command,
   CommandEmpty,
   CommandGroup,
-  CommandInput,
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
@@ -14,7 +14,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { cn } from '@/lib/utils';
 
 export default function TopBar({
   databases,
@@ -22,52 +21,78 @@ export default function TopBar({
   onSelectDatabase,
   onDisconnect,
   connectionUrl,
+  connectionMode,
 }) {
   const [open, setOpen] = useState(false);
+  const [inputValue, setInputValue] = useState('');
+
+  const handleSelect = (db) => {
+    onSelectDatabase(db);
+    setInputValue('');
+    setOpen(false);
+  };
+
+  const handleClear = () => {
+    onSelectDatabase('');
+    setInputValue('');
+  };
+
+  const filteredDatabases = databases.filter(db =>
+    db.toLowerCase().includes(inputValue.toLowerCase())
+  );
 
   return (
     <div className="h-14 border-b border-slate-200 flex items-center px-4 bg-white z-20 flex-shrink-0" data-testid="topbar">
       <div className="flex items-center gap-2 mr-4">
         <Database className="w-5 h-5 text-orange-600" />
         <span className="text-sm font-semibold text-slate-900 font-heading">CouchDB Client</span>
+        {connectionMode && (
+          <span className="text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-mono">
+            {connectionMode}
+          </span>
+        )}
       </div>
 
       <div className="flex-1 flex items-center gap-3">
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              role="combobox"
-              aria-expanded={open}
-              className="w-64 h-9 justify-between"
-              data-testid="database-selector"
-            >
-              {selectedDatabase || "Select database..."}
-              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-            </Button>
+            <div className="relative w-64">
+              <Input
+                value={selectedDatabase || inputValue}
+                onChange={(e) => {
+                  if (!selectedDatabase) {
+                    setInputValue(e.target.value);
+                    setOpen(true);
+                  }
+                }}
+                onFocus={() => setOpen(true)}
+                placeholder="Type database name..."
+                className="h-9 pr-8"
+                data-testid="database-selector"
+              />
+              {selectedDatabase && (
+                <button
+                  onClick={handleClear}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  data-testid="clear-database-btn"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </PopoverTrigger>
-          <PopoverContent className="w-64 p-0">
+          <PopoverContent className="w-64 p-0" align="start">
             <Command>
-              <CommandInput placeholder="Search databases..." />
               <CommandList>
                 <CommandEmpty>No database found.</CommandEmpty>
                 <CommandGroup>
-                  {databases.map((db) => (
+                  {filteredDatabases.map((db) => (
                     <CommandItem
                       key={db}
                       value={db}
-                      onSelect={() => {
-                        onSelectDatabase(db);
-                        setOpen(false);
-                      }}
+                      onSelect={() => handleSelect(db)}
                       data-testid={`database-option-${db}`}
                     >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4",
-                          selectedDatabase === db ? "opacity-100" : "opacity-0"
-                        )}
-                      />
                       {db}
                     </CommandItem>
                   ))}

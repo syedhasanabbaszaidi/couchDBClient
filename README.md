@@ -21,6 +21,7 @@ A minimal, developer-focused CouchDB client for managing databases and documents
 ## Documentation
 
 - 📖 **[Quick Start Guide](./QUICK_START.md)** - Get up and running in 60 seconds
+- 🔌 **[Connection Modes](./CONNECTION_MODES.md)** - Direct vs Proxy (localhost tunnels explained)
 - 📚 **[Features Guide](./FEATURES_GUIDE.md)** - Complete feature documentation
 - 💻 **[Electron Setup](./ELECTRON_SETUP.md)** - Build desktop installers
 - 📋 **[README](./README.md)** - This file (overview & installation)

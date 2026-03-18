@@ -31,26 +31,57 @@ export default function ConnectionScreen({ onConnect }) {
     setLoading(true);
 
     try {
-      const response = await axios.post(`${API}/couchdb/test-connection`, {
-        url,
-        username: username || undefined,
-        password: password || undefined,
-      });
-
-      if (response.data.success) {
-        toast.success('Connected to CouchDB successfully!');
-        onConnect({ url, username, password, name: name || url });
+      // Check if it's localhost (direct connection)
+      const isLocalhost = url.includes('localhost') || url.includes('127.0.0.1');
+      
+      if (isLocalhost) {
+        // Direct connection test
+        const headers = {};
+        if (username && password) {
+          const credentials = `${username}:${password}`;
+          const encoded = btoa(credentials);
+          headers['Authorization'] = `Basic ${encoded}`;
+        }
         
-        // Add to recent connections
-        const recentConnections = JSON.parse(localStorage.getItem('recent_connections') || '[]');
-        const newConnection = { url, username, name: name || url };
-        const filtered = recentConnections.filter(c => c.url !== newConnection.url);
-        filtered.unshift(newConnection);
-        localStorage.setItem('recent_connections', JSON.stringify(filtered.slice(0, 5)));
+        const response = await axios.get(url, { headers });
+        if (response.data.couchdb) {
+          toast.success(`Connected to CouchDB ${response.data.version}!`);
+          onConnect({ url, username, password, name: name || url });
+          
+          // Add to recent connections
+          const recentConnections = JSON.parse(localStorage.getItem('recent_connections') || '[]');
+          const newConnection = { url, username, name: name || url };
+          const filtered = recentConnections.filter(c => c.url !== newConnection.url);
+          filtered.unshift(newConnection);
+          localStorage.setItem('recent_connections', JSON.stringify(filtered.slice(0, 5)));
+        }
+      } else {
+        // Use backend proxy for remote connections
+        const response = await axios.post(`${API}/couchdb/test-connection`, {
+          url,
+          username: username || undefined,
+          password: password || undefined,
+        });
+
+        if (response.data.success) {
+          toast.success('Connected to CouchDB successfully!');
+          onConnect({ url, username, password, name: name || url });
+          
+          // Add to recent connections
+          const recentConnections = JSON.parse(localStorage.getItem('recent_connections') || '[]');
+          const newConnection = { url, username, name: name || url };
+          const filtered = recentConnections.filter(c => c.url !== newConnection.url);
+          filtered.unshift(newConnection);
+          localStorage.setItem('recent_connections', JSON.stringify(filtered.slice(0, 5)));
+        }
       }
     } catch (error) {
       console.error('Connection error:', error);
-      toast.error(error.response?.data?.detail || 'Failed to connect to CouchDB');
+      const errorMsg = error.response?.data?.detail || 
+                       error.response?.data?.reason || 
+                       error.message || 
+                       'Failed to connect to CouchDB. Make sure CouchDB is running and accessible.';
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }

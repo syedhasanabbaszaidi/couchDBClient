@@ -96,12 +96,16 @@ export default function Editor({
     }
   };
 
-  const handleCopyId = () => {
-    if (documentId && documentId !== 'new') {
-      navigator.clipboard.writeText(documentId);
+  const handleCopyDocument = () => {
+    try {
+      const parsed = JSON.parse(content);
+      const formatted = JSON.stringify(parsed, null, 2);
+      navigator.clipboard.writeText(formatted);
       setCopied(true);
-      toast.success('Document ID copied');
+      toast.success('Document JSON copied to clipboard');
       setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      toast.error('Failed to copy document');
     }
   };
 
@@ -157,17 +161,21 @@ export default function Editor({
                 onClick={handleDownload}
                 className="h-9 text-slate-600 hover:text-slate-900"
                 data-testid="download-btn"
+                title="Download JSON file"
               >
-                <Download className="w-4 h-4" />
+                <Download className="w-4 h-4 mr-1" />
+                <span className="text-xs">Download</span>
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={handleCopyId}
+                onClick={handleCopyDocument}
                 className="h-9 text-slate-600 hover:text-slate-900"
-                data-testid="copy-id-btn"
+                data-testid="copy-document-btn"
+                title="Copy entire document JSON"
               >
-                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                {copied ? <Check className="w-4 h-4 mr-1" /> : <Copy className="w-4 h-4 mr-1" />}
+                <span className="text-xs">Copy JSON</span>
               </Button>
             </>
           )}
