@@ -22,7 +22,7 @@ function generateUUID() {
 }
 
 export default function Editor({
-  document,
+  documentData,
   documentId,
   onSave,
   onCreate,
@@ -37,8 +37,8 @@ export default function Editor({
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    if (document) {
-      const formatted = JSON.stringify(document, null, 2);
+    if (documentData) {
+      const formatted = JSON.stringify(documentData, null, 2);
       setContent(formatted);
       setOriginalContent(formatted);
       setIsValid(true);
@@ -52,7 +52,7 @@ export default function Editor({
       setContent('');
       setOriginalContent('');
     }
-  }, [document, documentId]);
+  }, [documentData, documentId]);
 
   const handleContentChange = (e) => {
     const newContent = e.target.value;
@@ -100,8 +100,8 @@ export default function Editor({
   };
 
   const handleFinalDelete = () => {
-    if (document && document._rev) {
-      onDelete(documentId, document._rev);
+    if (documentData && documentData._rev) {
+      onDelete(documentId, documentData._rev);
       setShowFinalDeleteDialog(false);
     }
   };
@@ -130,13 +130,16 @@ export default function Editor({
       const jsonString = JSON.stringify(parsed, null, 2);
       const blob = new Blob([jsonString], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${documentId || 'document'}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      
+      // Use DOM API correctly
+      const link = window.document.createElement('a');
+      link.href = url;
+      link.download = `${documentId || 'document'}.json`;
+      window.document.body.appendChild(link);
+      link.click();
+      window.document.body.removeChild(link);
       URL.revokeObjectURL(url);
+      
       toast.success('Document downloaded successfully');
     } catch (error) {
       console.error('Download error:', error);
@@ -247,10 +250,10 @@ export default function Editor({
         />
       </div>
 
-      {document && document._rev && (
+      {documentData && documentData._rev && (
         <div className="h-8 border-t border-slate-200 flex items-center px-4 bg-slate-50 flex-shrink-0">
           <span className="text-xs text-slate-500 font-mono">
-            Rev: {document._rev}
+            Rev: {documentData._rev}
           </span>
         </div>
       )}

@@ -37,7 +37,6 @@ export default function Dashboard({ connection, onDisconnect }) {
           headers: getAuthHeader(connection.username, connection.password),
         });
         const allDbs = response.data.filter(db => !db.startsWith('_'));
-        // Filter by search query
         return allDbs.filter(db => 
           db.toLowerCase().includes(searchQuery.toLowerCase())
         );
@@ -59,6 +58,48 @@ export default function Dashboard({ connection, onDisconnect }) {
     } catch (error) {
       console.error('Failed to search databases:', error);
       toast.error('Failed to search databases');
+      return [];
+    }
+  };
+
+  // Search documents function (called by Sidebar)
+  const searchDocuments = async (searchQuery) => {
+    if (!selectedDatabase) return [];
+    
+    try {
+      if (useDirect) {
+        const response = await axios.get(
+          `${connection.url}/${selectedDatabase}/_all_docs`,
+          {
+            headers: getAuthHeader(connection.username, connection.password),
+            params: { 
+              include_docs: false, 
+              limit: 50,
+              startkey: `"${searchQuery}"`,
+              endkey: `"${searchQuery}\ufff0"`
+            },
+          }
+        );
+        return response.data.rows || [];
+      } else {
+        const response = await axios.get(`${API}/couchdb/documents`, {
+          params: {
+            url: connection.url,
+            database: selectedDatabase,
+            username: connection.username,
+            password: connection.password,
+            limit: 50,
+          },
+        });
+        if (response.data.success) {
+          const allDocs = response.data.data.rows || [];
+          return allDocs.filter(doc => 
+            doc.id.toLowerCase().includes(searchQuery.toLowerCase())
+          );
+        }
+      }
+    } catch (error) {
+      console.error('Failed to search documents:', error);
       return [];
     }
   };
@@ -223,6 +264,7 @@ export default function Dashboard({ connection, onDisconnect }) {
         <Sidebar
           selectedDocument={selectedDocument}
           onSelectDocument={loadDocument}
+          onSearchDocuments={searchDocuments}
           onNewDocument={() => {
             setSelectedDocument('new');
             setDocumentContent(null);
@@ -230,7 +272,7 @@ export default function Dashboard({ connection, onDisconnect }) {
           database={selectedDatabase}
         />
         <Editor
-          document={documentContent}
+          documentData={documentContent}
           documentId={selectedDocument}
           onSave={saveDocument}
           onCreate={createDocument}
