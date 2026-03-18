@@ -3,7 +3,7 @@ import sys
 from datetime import datetime
 import json
 
-BACKEND_URL = "https://couch-client.preview.emergentagent.com"
+BACKEND_URL = "https://db-explorer-8.preview.emergentagent.com"
 API = f"{BACKEND_URL}/api"
 
 class CouchDBAPITester:

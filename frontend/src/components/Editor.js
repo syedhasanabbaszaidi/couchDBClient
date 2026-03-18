@@ -35,7 +35,7 @@ export default function Editor({
   const [originalContent, setOriginalContent] = useState('');
   const [parsedJson, setParsedJson] = useState(null);
   const [isValid, setIsValid] = useState(true);
-  const [viewMode, setViewMode] = useState('formatted'); // 'formatted' or 'raw'
+  const [viewMode, setViewMode] = useState('formatted');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showFinalDeleteDialog, setShowFinalDeleteDialog] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -186,7 +186,6 @@ export default function Editor({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* View mode toggle */}
           <div className="flex rounded-md border border-slate-200 overflow-hidden">
             <button
               onClick={() => setViewMode('formatted')}
@@ -253,7 +252,7 @@ export default function Editor({
           <Button
             onClick={handleSave}
             disabled={!hasChanges || !isValid}
-            className="h-9 bg-slate-900 hover:bg-slate-800 text-white"
+            className="h-9 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md"
             data-testid="save-document-btn"
           >
             <Save className="w-4 h-4 mr-2" />
@@ -276,14 +275,15 @@ export default function Editor({
 
       <div className="flex-1 overflow-auto p-4">
         {viewMode === 'formatted' && parsedJson && isValid ? (
-          <div className="bg-slate-50 p-4 rounded-md">
+          <div className="bg-slate-50 p-4 rounded-md space-y-2">
+            <div className="text-xs text-slate-500 mb-2">Click "Raw JSON" button above to edit, or copy and paste to external editor</div>
             <JsonView 
               data={parsedJson} 
-              shouldExpandNode={(level) => level < 3}
+              shouldExpandNode={() => true}
               style={{
                 ...defaultStyles,
                 container: 'font-mono text-sm',
-                label: 'text-blue-600 font-semibold',
+                label: 'text-blue-600 font-semibold cursor-pointer',
                 nullValue: 'text-slate-400',
                 undefinedValue: 'text-slate-400',
                 stringValue: 'text-green-600',
@@ -291,8 +291,8 @@ export default function Editor({
                 numberValue: 'text-orange-600',
                 otherValue: 'text-slate-600',
                 punctuation: 'text-slate-400',
-                collapseIcon: 'cursor-pointer select-none text-slate-600 hover:text-slate-900',
-                expandIcon: 'cursor-pointer select-none text-slate-600 hover:text-slate-900',
+                collapseIcon: 'cursor-pointer select-none text-slate-900 hover:text-blue-600 font-bold',
+                expandIcon: 'cursor-pointer select-none text-slate-900 hover:text-blue-600 font-bold',
               }}
             />
           </div>

@@ -175,6 +175,14 @@ export const getRecentDocuments = async (database) => {
     .map(d => d.docId);
 };
 
+// Get ALL recent documents across all databases (for cross-database navigation)
+export const getAllRecentDocuments = async () => {
+  const all = await getAll('recent_documents');
+  return all
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .slice(0, 20);
+};
+
 export const addRecentDocument = async (database, docId) => {
   const existing = await getAll('recent_documents');
   
@@ -204,6 +212,19 @@ export const addRecentDocument = async (database, docId) => {
   }
 };
 
+// Clear all recent documents
+export const clearRecentDocuments = async () => {
+  const database = await initDB();
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(['recent_documents'], 'readwrite');
+    const store = transaction.objectStore('recent_documents');
+    const request = store.clear();
+
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+};
+
 // Tab states (selected database, open document)
 export const getTabState = (tabId) => get('tab_states', tabId);
 export const saveTabState = (tabId, state) => put('tab_states', { tabId, ...state });
@@ -219,7 +240,9 @@ export default {
   getRecentDatabases,
   addRecentDatabase,
   getRecentDocuments,
+  getAllRecentDocuments,
   addRecentDocument,
+  clearRecentDocuments,
   getTabState,
   saveTabState,
   deleteTabState,

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, FileJson, Clock, Search } from 'lucide-react';
+import { Plus, FileJson, Clock, Search, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -15,7 +15,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { getRecentDocuments, addRecentDocument } from '@/lib/localDB';
+import { getRecentDocuments, getAllRecentDocuments, addRecentDocument, clearRecentDocuments } from '@/lib/localDB';
 
 export default function Sidebar({
   selectedDocument,
@@ -23,6 +23,7 @@ export default function Sidebar({
   onSearchDocuments,
   onNewDocument,
   database,
+  onSwitchDatabase,
 }) {
   const [recentDocuments, setRecentDocuments] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -33,9 +34,11 @@ export default function Sidebar({
   const searchInputRef = useRef(null);
 
   useEffect(() => {
-    if (database) {
-      loadRecentDocuments();
-    }
+    loadRecentDocuments();
+    // Clear search when database changes
+    setSearchQuery('');
+    setSearchResults([]);
+    setSearchOpen(false);
     return () => {
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
@@ -52,13 +55,21 @@ export default function Sidebar({
   }, [selectedDocument, database]);
 
   const loadRecentDocuments = async () => {
-    if (!database) return;
     try {
-      const recent = await getRecentDocuments(database);
-      setRecentDocuments(recent || []);
+      // Load ALL recent documents from all databases
+      const allRecent = await getAllRecentDocuments();
+      console.log('All recent docs:', allRecent);
+      console.log('Current database:', database);
+      setRecentDocuments(allRecent || []);
     } catch (error) {
       console.error('Failed to load recent documents:', error);
     }
+  };
+
+  const handleSelectDocument = async (doc) => {
+    console.log('Selected doc:', doc, 'Current DB:', database);
+    // Always pass the document's database to ensure correct loading
+    onSelectDocument(doc.docId, doc.database);
   };
 
   const handleSearchChange = (e) => {
@@ -72,20 +83,33 @@ export default function Sidebar({
     if (!value.trim()) {
       setSearchOpen(false);
       setSearchResults([]);
+      setIsSearching(false);
       return;
     }
 
     setIsSearching(true);
     searchTimeoutRef.current = setTimeout(async () => {
-      const results = await onSearchDocuments(value);
-      setSearchResults(results || []);
-      setIsSearching(false);
-      setSearchOpen(true);
-    }, 3000);
+      try {
+        console.log('Searching for:', value, 'in database:', database);
+        const results = await onSearchDocuments(value);
+        console.log('Search results:', results);
+        setSearchResults(results || []);
+        setIsSearching(false);
+        if (results && results.length > 0) {
+          setSearchOpen(true);
+        } else {
+          setSearchOpen(true); // Show "no results" message
+        }
+      } catch (error) {
+        console.error('Search error:', error);
+        setIsSearching(false);
+        setSearchOpen(false);
+      }
+    }, 500); // Reduced from 1500ms to 500ms for faster feedback
   };
 
   const handleSelectFromSearch = (docId) => {
-    onSelectDocument(docId);
+    onSelectDocument(docId, database);
     setSearchQuery('');
     setSearchResults([]);
     setSearchOpen(false);
@@ -98,6 +122,15 @@ export default function Sidebar({
         searchInputRef.current.value.length,
         searchInputRef.current.value.length
       );
+    }
+  };
+
+  const handleClearRecentDocuments = async () => {
+    try {
+      await clearRecentDocuments();
+      setRecentDocuments([]);
+    } catch (error) {
+      console.error('Failed to clear recent documents:', error);
     }
   };
 
@@ -121,7 +154,7 @@ export default function Sidebar({
               <Input
                 ref={searchInputRef}
                 type="text"
-                placeholder="Search documents by ID..."
+                placeholder={isSearching ? "Searching..." : "Search documents by ID..."}
                 value={searchQuery}
                 onChange={handleSearchChange}
                 onClick={handleSearchClick}
@@ -134,6 +167,7 @@ export default function Sidebar({
                 className="pl-9 h-9 bg-white"
                 data-testid="search-documents-input"
                 autoComplete="off"
+                disabled={!database}
               />
               {isSearching && (
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
@@ -145,10 +179,17 @@ export default function Sidebar({
           <PopoverContent className="w-72 p-0" align="start">
             <Command>
               <CommandList>
-                {searchResults.length === 0 ? (
-                  <CommandEmpty>No documents found. Keep typing...</CommandEmpty>
+                {isSearching ? (
+                  <div className="p-4 text-center text-sm text-slate-500">
+                    <div className="animate-spin h-6 w-6 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+                    Searching database...
+                  </div>
+                ) : searchResults.length === 0 ? (
+                  <CommandEmpty>
+                    {searchQuery ? 'No documents found matching your search.' : 'Type to search...'}
+                  </CommandEmpty>
                 ) : (
-                  <CommandGroup>
+                  <CommandGroup heading={`Found ${searchResults.length} document(s)`}>
                     {searchResults.map((doc) => (
                       <CommandItem
                         key={doc.id}
@@ -180,28 +221,51 @@ export default function Sidebar({
       <ScrollArea className="flex-1">
         {recentDocuments.length > 0 ? (
           <div className="p-2">
-            <div className="flex items-center gap-1 px-2 py-2 mb-1">
-              <Clock className="w-3 h-3 text-slate-400" />
-              <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Recently Opened</span>
+            <div className="flex items-center justify-between px-2 py-2 mb-1">
+              <div className="flex items-center gap-1">
+                <Clock className="w-3 h-3 text-slate-400" />
+                <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Recently Opened</span>
+              </div>
+              <button
+                onClick={handleClearRecentDocuments}
+                className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                title="Clear recent documents"
+                data-testid="clear-recent-docs-btn"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
             </div>
             <div className="space-y-1">
-              {recentDocuments.map((docId) => (
+              {recentDocuments.map((doc) => {
+                const isFromDifferentDb = doc.database !== database;
+                const isSelected = selectedDocument === doc.docId && doc.database === database;
+                
+                return (
                 <button
-                  key={docId}
-                  onClick={() => onSelectDocument(docId)}
+                  key={`${doc.database}-${doc.docId}`}
+                  onClick={() => handleSelectDocument(doc)}
                   className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md cursor-pointer transition-all ${
-                    selectedDocument === docId
+                    isSelected
                       ? 'bg-blue-50 text-blue-900 shadow-sm border border-blue-200 font-medium'
                       : 'text-slate-600 hover:bg-slate-200/50 hover:text-slate-900'
                   }`}
-                  data-testid={`recent-doc-${docId}`}
+                  data-testid={`recent-doc-${doc.docId}`}
                 >
                   <FileJson className={`w-4 h-4 flex-shrink-0 ${
-                    selectedDocument === docId ? 'text-blue-600' : ''
+                    isSelected ? 'text-blue-600' : ''
                   }`} />
-                  <span className="truncate font-mono text-xs">{docId}</span>
+                  <div className="flex-1 truncate text-left">
+                    <span className="font-mono text-xs block truncate">{doc.docId}</span>
+                    <span className={`text-xs font-medium ${isFromDifferentDb ? 'text-orange-600' : 'text-slate-400'}`}>
+                      {doc.database}
+                    </span>
+                  </div>
+                  {isFromDifferentDb && (
+                    <span className="text-xs text-slate-400">↗</span>
+                  )}
                 </button>
-              ))}
+                );
+              })}
             </div>
           </div>
         ) : (

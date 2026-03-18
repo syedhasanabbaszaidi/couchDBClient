@@ -4,7 +4,7 @@
 
 A professional, minimal CouchDB client application with both web and desktop capabilities. Built with React + FastAPI + Electron, featuring a clean Swiss Laboratory aesthetic design.
 
-**Live URL**: https://couch-client.preview.emergentagent.com
+**Live URL**: https://db-explorer-8.preview.emergentagent.com
 
 ---
 

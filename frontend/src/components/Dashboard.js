@@ -127,23 +127,31 @@ export default function Dashboard({
   };
 
   // Search documents function (called by Sidebar)
+  // Uses CouchDB's startkey/endkey for efficient server-side filtering
   const searchDocuments = async (searchQuery) => {
     if (!selectedDatabase) return [];
     
+    console.log('searchDocuments called with:', searchQuery, 'using startkey/endkey');
+    
     try {
       if (useDirect) {
+        // Use startkey/endkey for server-side "startsWith" filtering
+        const params = { 
+          include_docs: false, 
+          startkey: JSON.stringify(searchQuery),
+          endkey: JSON.stringify(searchQuery + '\ufff0'),
+          limit: 100,
+        };
+        console.log('Direct mode params:', params);
+        
         const response = await axios.get(
           `${connection.url}/${selectedDatabase}/_all_docs`,
           {
             headers: getAuthHeader(connection.username, connection.password),
-            params: { 
-              include_docs: false, 
-              limit: 50,
-              startkey: `"${searchQuery}"`,
-              endkey: `"${searchQuery}\ufff0"`
-            },
+            params,
           }
         );
+        console.log('Search response:', response.data.rows?.length, 'results');
         return response.data.rows || [];
       } else {
         const response = await axios.get(`${API}/couchdb/documents`, {
@@ -152,38 +160,48 @@ export default function Dashboard({
             database: selectedDatabase,
             username: connection.username,
             password: connection.password,
-            limit: 50,
+            startkey: searchQuery,
+            endkey: searchQuery + '\ufff0',
+            limit: 100,
           },
         });
         if (response.data.success) {
-          const allDocs = response.data.data.rows || [];
-          return allDocs.filter(doc => 
-            doc.id.toLowerCase().includes(searchQuery.toLowerCase())
-          );
+          return response.data.data.rows || [];
         }
       }
     } catch (error) {
       console.error('Failed to search documents:', error);
+      toast.error('Failed to search documents');
       return [];
     }
   };
 
-  const loadDocument = async (docId) => {
+  const loadDocument = async (docId, dbOverride = null) => {
+    const targetDb = dbOverride || selectedDatabase;
+    if (!targetDb) {
+      toast.error('No database selected');
+      return;
+    }
+    
     try {
       if (useDirect) {
         const response = await axios.get(
-          `${connection.url}/${selectedDatabase}/${docId}`,
+          `${connection.url}/${targetDb}/${docId}`,
           {
             headers: getAuthHeader(connection.username, connection.password),
           }
         );
         setDocumentContent(response.data);
         setSelectedDocument(docId);
+        // Update selected database if loading from different db
+        if (dbOverride && dbOverride !== selectedDatabase) {
+          setSelectedDatabase(dbOverride);
+        }
       } else {
         const response = await axios.get(`${API}/couchdb/document`, {
           params: {
             url: connection.url,
-            database: selectedDatabase,
+            database: targetDb,
             doc_id: docId,
             username: connection.username,
             password: connection.password,
@@ -192,6 +210,10 @@ export default function Dashboard({
         if (response.data.success) {
           setDocumentContent(response.data.document);
           setSelectedDocument(docId);
+          // Update selected database if loading from different db
+          if (dbOverride && dbOverride !== selectedDatabase) {
+            setSelectedDatabase(dbOverride);
+          }
         }
       }
     } catch (error) {
@@ -330,6 +352,7 @@ export default function Dashboard({
           selectedDocument={selectedDocument}
           onSelectDocument={loadDocument}
           onSearchDocuments={searchDocuments}
+          onSwitchDatabase={setSelectedDatabase}
           onNewDocument={() => {
             setSelectedDocument('new');
             setDocumentContent(null);

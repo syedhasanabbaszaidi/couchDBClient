@@ -56,8 +56,8 @@ export default function TopBar({
   const handleInputChange = (e) => {
     const value = e.target.value;
     
-    // If user is typing/deleting and database is selected, clear it
-    if (selectedDatabase) {
+    // Only clear selection if user is actually typing something different
+    if (selectedDatabase && value !== selectedDatabase) {
       onSelectDatabase('');
     }
     
@@ -70,6 +70,7 @@ export default function TopBar({
     if (!value.trim()) {
       setOpen(true); // Show recents even when empty
       setSearchResults([]);
+      setIsSearching(false);
       return;
     }
 
@@ -79,16 +80,26 @@ export default function TopBar({
       setSearchResults(results || []);
       setIsSearching(false);
       setOpen(true);
-    }, 3000);
+    }, 500); // Reduced from 3000ms to 500ms for faster feedback
   };
 
   const handleSelect = async (db) => {
-    onSelectDatabase(db);
-    await addRecentDatabase(db);
-    await loadRecentDatabases();
+    // Close dropdown and clear input immediately for better UX
+    setOpen(false);
     setInputValue('');
     setSearchResults([]);
-    setOpen(false);
+    setIsSearching(false);
+    
+    // Clear any pending search
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // Select the database (this triggers the load)
+    onSelectDatabase(db);
+    
+    // Update recent databases in background
+    addRecentDatabase(db).then(() => loadRecentDatabases());
   };
 
   const handleClear = () => {
