@@ -1,303 +1,214 @@
-# CouchDB Client MVP
+# CouchDB Client
 
-A minimal, developer-focused CouchDB client for managing databases and documents. Built with React, FastAPI, and available as both a web app and desktop application.
+A minimal, developer-focused CouchDB client for managing databases and documents. Available as a web app and standalone desktop application for Windows and Mac.
 
 ## Features
 
-- 🔌 **Connect to CouchDB** - Easy connection with URL and credentials (default: localhost:9004)
-- 💾 **Saved Connections** - Save and manage multiple CouchDB connections
-- 📑 **Multi-Tab Support** - Open multiple connections side by side in tabs
-- 📚 **Database Management** - Browse and switch between databases with searchable dropdown
-- 📄 **Document Operations** - View, edit, create, and delete documents
-- 🔍 **Smart Search** - Autocomplete search with recently opened documents
-- ⏱️ **Recent Documents** - Quick access to previously opened files
-- 🆕 **Auto UUID** - New documents auto-populated with `_id` UUID
-- 📥 **Download Documents** - Save documents locally as JSON files
-- 💾 **JSON Editor** - Formatted JSON editing with real-time validation
-- 🎨 **Minimal UI** - Clean, developer-focused interface
-- 💻 **Desktop Apps** - Package as Windows/Mac applications
-- 🌐 **Web App** - Use directly in browser
+- Connect to any CouchDB instance (local or remote)
+- Direct connection mode for localhost/tunnels (no proxy needed)
+- Multiple database connections via tabs
+- Database search and selection with recent history
+- Document search (prefix-based, server-side filtering)
+- JSON editor with syntax highlighting and collapsible view
+- Create, read, update, and delete documents
+- Download and copy document JSON
+- Persistent storage of connections and recent items (IndexedDB)
+- Connection status indicator
 
-## Documentation
+## Tech Stack
 
-- 📖 **[Quick Start Guide](./QUICK_START.md)** - Get up and running in 60 seconds
-- 🔌 **[Connection Modes](./CONNECTION_MODES.md)** - Direct vs Proxy (localhost tunnels explained)
-- 📚 **[Features Guide](./FEATURES_GUIDE.md)** - Complete feature documentation
-- 💻 **[Electron Setup](./ELECTRON_SETUP.md)** - Build desktop installers
-- 📋 **[README](./README.md)** - This file (overview & installation)
+- **Frontend**: React.js, Tailwind CSS
+- **Backend**: Node.js, Express (optional proxy for remote connections)
+- **Desktop**: Electron
+- **Storage**: IndexedDB (client-side, no external database needed)
+
+**No Python dependencies. No external services required.**
+
+---
 
 ## Quick Start (Web App)
 
 ### Prerequisites
+- Node.js 18+ 
+- npm or yarn
 
-- Python 3.11+
-- Node.js 16+
-- CouchDB server running (local or remote)
-- For tunnel setup: CouchDB accessible at `localhost:9004`
-
-### Installation
-
-1. **Install Backend Dependencies**
+### 1. Install Dependencies
 
 ```bash
-cd backend
-pip install -r requirements.txt
-```
-
-2. **Install Frontend Dependencies**
-
-```bash
+# Frontend
 cd frontend
+yarn install
+
+# Backend (optional - only needed for non-localhost connections)
+cd ../backend
 yarn install
 ```
 
-3. **Start Backend Server**
+### 2. Run the App
 
 ```bash
+# Terminal 1: Start backend (optional)
 cd backend
-uvicorn server:app --host 0.0.0.0 --port 8001 --reload
-```
+yarn start
 
-4. **Start Frontend**
-
-```bash
+# Terminal 2: Start frontend
 cd frontend
 yarn start
 ```
 
-5. **Open Browser**
+Open `http://localhost:3000` in your browser.
 
-Navigate to `http://localhost:3000`
+### Connection Modes
 
-## Usage
+- **Direct Mode**: For `localhost` or `127.0.0.1` URLs - connects directly from browser to CouchDB
+- **Proxy Mode**: For remote URLs - routes through the Node.js backend
 
-### Connecting to CouchDB
+---
 
-1. **Direct Connection**
-   - Enter your CouchDB server URL: `http://localhost:9004`
-   - Enter username and password (if authentication enabled)
-   - Click **Connect** or **Save** to store connection
+## Desktop App Build Instructions
 
-2. **Using Saved Connections**
-   - Previously saved connections appear on the right
-   - Click any saved connection to load details
-   - Enter password and connect
+### Prerequisites
+- Node.js 18+
+- yarn
+- For Windows builds on Mac/Linux: Wine (optional)
+- For Mac builds on Windows/Linux: Not supported (must build on Mac)
 
-3. **Multi-Tab Support**
-   - Click **+** in tab bar to add new connection
-   - Switch between multiple databases
-   - Each tab maintains its own state
-
-For detailed usage instructions, see [Quick Start Guide](./QUICK_START.md).
-
-### Managing Documents
-
-### Managing Documents
-
-- **Select Database**: Use the searchable dropdown in the top bar (type to filter)
-- **Browse Documents**: Listed in left sidebar
-- **Quick Access**: Recently opened documents appear at the top
-- **Search**: Type document ID in search box (autocomplete suggestions)
-- **Create New**: Click "New Document" (auto-generates `_id` with UUID)
-- **Edit**: Select document, modify JSON, click "Save"
-- **Download**: Click download icon to save as JSON file
-- **Copy ID**: Click copy icon to copy document ID to clipboard
-- **Delete**: Click trash icon when viewing a document
-
-### JSON Editor
-
-- Automatically formats JSON with proper indentation
-- Validates JSON in real-time (red border indicates errors)
-- Shows document revision number
-- Revert button to undo unsaved changes
-
-## Desktop App Setup
-
-See [ELECTRON_SETUP.md](./ELECTRON_SETUP.md) for detailed instructions on:
-
-- Building desktop installers for Windows and Mac
-- Testing the desktop app locally
-- Customizing app name, icon, and settings
-- Distribution options
-
-**Quick Build**:
+### Step 1: Build the Frontend
 
 ```bash
-# Build frontend
-cd frontend && yarn build
+cd frontend
 
-# Install Electron dependencies
-cd ../electron && yarn install
+# Set the backend URL for production (empty for standalone use)
+echo "REACT_APP_BACKEND_URL=" > .env.production
 
-# Build for your platform
-yarn build:mac   # or build:win
+# Build the React app
+yarn build
 ```
 
-Installers will be in `/electron/dist/`
+This creates optimized static files in `frontend/build/`.
 
-## Architecture
+### Step 2: Setup Electron
 
-### Backend (FastAPI)
+```bash
+cd electron
+yarn install
+```
 
-- Acts as a proxy to CouchDB REST API
-- Handles CORS issues
-- Manages authentication headers
-- Located in `/backend/`
+### Step 3: Build Desktop App
 
-**Endpoints**:
-- `POST /api/couchdb/test-connection` - Test connection
-- `GET /api/couchdb/databases` - List databases
-- `GET /api/couchdb/documents` - List documents in database
-- `GET /api/couchdb/document` - Get specific document
-- `PUT /api/couchdb/document` - Save/update document
-- `POST /api/couchdb/document` - Create new document
-- `DELETE /api/couchdb/document` - Delete document
+#### For macOS (run on Mac):
+```bash
+cd electron
+yarn build:mac
+```
 
-### Frontend (React)
+Output: `electron/dist/CouchDB Client-1.0.0.dmg` and `electron/dist/CouchDB Client-1.0.0-mac.zip`
 
-- Clean, minimal UI with developer-focused design
-- Uses Shadcn UI components
-- Tailwind CSS for styling
-- Located in `/frontend/`
+#### For Windows (run on Windows, or Mac/Linux with Wine):
+```bash
+cd electron
+yarn build:win
+```
 
-**Components**:
-- `ConnectionScreen` - Initial connection form
-- `Dashboard` - Main application container
-- `TopBar` - Database selector and connection info
-- `Sidebar` - Document list and search
-- `Editor` - JSON document editor
+Output: `electron/dist/CouchDB Client Setup 1.0.0.exe` (installer) and `electron/dist/CouchDB Client 1.0.0.exe` (portable)
 
-### Desktop (Electron)
+#### Build for All Platforms:
+```bash
+cd electron
+yarn build:all
+```
 
-- Packages web app as native desktop application
-- Electron main process in `/electron/main.js`
-- Build configuration in `/electron/package.json`
+### Step 4: Run Desktop App (Development)
+
+```bash
+# First, start the frontend dev server
+cd frontend
+yarn start
+
+# In another terminal, run Electron in dev mode
+cd electron
+NODE_ENV=development yarn electron
+```
+
+---
+
+## Project Structure
+
+```
+├── frontend/                 # React frontend
+│   ├── src/
+│   │   ├── components/       # UI components
+│   │   │   ├── ConnectionScreen.js
+│   │   │   ├── Dashboard.js
+│   │   │   ├── Editor.js
+│   │   │   ├── Sidebar.js
+│   │   │   ├── TabManager.js
+│   │   │   └── TopBar.js
+│   │   ├── lib/
+│   │   │   └── localDB.js    # IndexedDB wrapper
+│   │   └── App.js
+│   └── package.json
+│
+├── backend/                  # Node.js backend (optional proxy)
+│   ├── server.js
+│   └── package.json
+│
+├── electron/                 # Electron desktop wrapper
+│   ├── main.js
+│   └── package.json
+│
+└── README.md
+```
+
+---
 
 ## Configuration
 
-### Backend Environment Variables
-
-Edit `/backend/.env`:
-
-```env
-CORS_ORIGINS="*"  # Allowed CORS origins
-```
-
 ### Frontend Environment Variables
 
-Edit `/frontend/.env`:
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `REACT_APP_BACKEND_URL` | Backend API URL | (empty for standalone) |
 
-```env
-REACT_APP_BACKEND_URL=http://localhost:8001  # Backend API URL
-```
+### Backend Environment Variables
 
-## Development
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PORT` | Server port | 8001 |
 
-### Tech Stack
+---
 
-- **Frontend**: React 19, Tailwind CSS, Shadcn UI, Lucide Icons
-- **Backend**: FastAPI, httpx
-- **Desktop**: Electron, electron-builder
-- **Fonts**: Manrope (headings), Inter (body), JetBrains Mono (code)
+## Desktop App Notes
 
-### Design System
+### Standalone Mode
+The desktop app works **completely standalone** when connecting to `localhost` CouchDB instances. No backend server is needed.
 
-- **Theme**: Minimal light theme, "Swiss Laboratory" aesthetic
-- **Colors**: Slate-900 (primary), Orange-600 (accent), White background
-- **Typography**: Clear hierarchy with proper spacing
-- **Layout**: Fixed top bar, sidebar, and main editor area
+### Remote Connections
+For connecting to remote CouchDB servers (not localhost), you'll need to either:
+1. Run the backend proxy alongside the app
+2. Ensure your CouchDB server has proper CORS headers configured
 
-### Adding Features
+### Adding an App Icon
+Place an `icon.png` (512x512 recommended) in the `electron/` directory before building.
 
-Some ideas for extensions:
-
-- **Bulk operations** - Delete/export multiple documents
-- **Database creation** - Create new databases
-- **View support** - Browse CouchDB views
-- **Attachments** - Upload/download file attachments
-- **Replication** - Configure database replication
-- **Design documents** - Edit design documents and views
-- **Query builder** - Visual Mango query builder
-
-## CouchDB Setup
-
-If you don't have CouchDB installed:
-
-### Using Docker
-
-```bash
-docker run -d --name couchdb -p 5984:5984 \
-  -e COUCHDB_USER=admin \
-  -e COUCHDB_PASSWORD=password \
-  couchdb:latest
-```
-
-### Local Installation
-
-- **Mac**: `brew install couchdb`
-- **Ubuntu**: `sudo apt-get install couchdb`
-- **Windows**: Download from [couchdb.apache.org](https://couchdb.apache.org/)
-
-### Enable CORS (for direct frontend access)
-
-```bash
-curl -X PUT http://admin:password@localhost:5984/_node/_local/_config/httpd/enable_cors -d '"true"'
-curl -X PUT http://admin:password@localhost:5984/_node/_local/_config/cors/origins -d '"*"'
-curl -X PUT http://admin:password@localhost:5984/_node/_local/_config/cors/credentials -d '"true"'
-curl -X PUT http://admin:password@localhost:5984/_node/_local/_config/cors/methods -d '"GET, PUT, POST, HEAD, DELETE"'
-curl -X PUT http://admin:password@localhost:5984/_node/_local/_config/cors/headers -d '"accept, authorization, content-type, origin, referer"'
-```
-
-## Deployment
-
-### Web App Deployment
-
-**Backend**:
-- Deploy to Heroku, AWS, Railway, or any Python host
-- Ensure backend URL is accessible to frontend
-
-**Frontend**:
-- Build: `cd frontend && yarn build`
-- Deploy `build/` folder to Netlify, Vercel, GitHub Pages, etc.
-- Update `REACT_APP_BACKEND_URL` to production backend URL
-
-### Desktop App Distribution
-
-1. Build installers: `cd electron && yarn build:all`
-2. Test on target platforms
-3. Optionally sign apps for better user trust
-4. Upload to GitHub Releases or your website
-5. Provide download links for Windows (.exe) and Mac (.dmg)
+---
 
 ## Troubleshooting
 
-**Can't connect to CouchDB**:
-- Ensure CouchDB is running: `curl http://localhost:5984`
-- Check credentials are correct
-- Verify URL format (include http:// or https://)
+### "CORS error" when connecting
+- For localhost: Make sure you're using `http://localhost:PORT` (not `127.0.0.1`)
+- For remote: Run the backend proxy or configure CORS on your CouchDB server
 
-**CORS errors in browser**:
-- Enable CORS on CouchDB (see above)
-- Or use the backend proxy (default setup)
+### Desktop app shows blank screen
+- Ensure you ran `yarn build` in the frontend directory first
+- Check that `frontend/build/index.html` exists
 
-**Backend not starting**:
-- Check Python version: `python --version` (needs 3.11+)
-- Install dependencies: `pip install -r requirements.txt`
-- Check port 8001 is not in use
+### Build fails on Windows
+- Install Visual Studio Build Tools
+- Run `npm install --global windows-build-tools` (as Administrator)
 
-**Frontend build errors**:
-- Clear cache: `yarn cache clean`
-- Delete node_modules: `rm -rf node_modules && yarn install`
-- Check Node version: `node --version` (needs 16+)
+---
 
 ## License
 
 MIT
-
-## Contributing
-
-Contributions welcome! Please open issues or submit pull requests.
-
-## Support
-
-For issues or questions, please open a GitHub issue.
