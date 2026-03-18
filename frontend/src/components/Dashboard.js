@@ -23,6 +23,8 @@ function isLocalhost(url) {
   return url.includes('localhost') || url.includes('127.0.0.1');
 }
 
+import { getTabState, saveTabState } from '@/lib/localDB';
+
 export default function Dashboard({ 
   connection, 
   onDisconnect, 
@@ -35,10 +37,35 @@ export default function Dashboard({
   const [connectionStatus, setConnectionStatus] = useState('checking');
   const useDirect = isLocalhost(connection.url);
 
-  // Check connection health on mount
+  // Load tab state on mount
   useEffect(() => {
+    loadTabState();
     checkConnection();
   }, []);
+
+  // Save tab state when it changes
+  useEffect(() => {
+    if (connection.id) {
+      saveTabState(connection.id, {
+        selectedDatabase,
+        selectedDocument,
+      });
+    }
+  }, [selectedDatabase, selectedDocument, connection.id]);
+
+  const loadTabState = async () => {
+    if (connection.id) {
+      try {
+        const state = await getTabState(connection.id);
+        if (state) {
+          if (state.selectedDatabase) setSelectedDatabase(state.selectedDatabase);
+          if (state.selectedDocument) setSelectedDocument(state.selectedDocument);
+        }
+      } catch (error) {
+        console.error('Failed to load tab state:', error);
+      }
+    }
+  };
 
   const checkConnection = async () => {
     try {

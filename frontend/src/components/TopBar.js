@@ -8,12 +8,15 @@ import {
   CommandGroup,
   CommandItem,
   CommandList,
+  CommandSeparator,
 } from '@/components/ui/command';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import { Clock } from 'lucide-react';
+import { getRecentDatabases, addRecentDatabase } from '@/lib/localDB';
 
 export default function TopBar({
   selectedDatabase,
@@ -27,16 +30,28 @@ export default function TopBar({
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [searchResults, setSearchResults] = useState([]);
+  const [recentDatabases, setRecentDatabases] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const searchTimeoutRef = useRef(null);
+  const inputRef = useRef(null);
 
   useEffect(() => {
+    loadRecentDatabases();
     return () => {
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
       }
     };
   }, []);
+
+  const loadRecentDatabases = async () => {
+    try {
+      const recent = await getRecentDatabases();
+      setRecentDatabases(recent.map(r => r.name));
+    } catch (error) {
+      console.error('Failed to load recent databases:', error);
+    }
+  };
 
   const handleInputChange = (e) => {
     const value = e.target.value;
@@ -61,8 +76,10 @@ export default function TopBar({
     }, 3000);
   };
 
-  const handleSelect = (db) => {
+  const handleSelect = async (db) => {
     onSelectDatabase(db);
+    await addRecentDatabase(db);
+    await loadRecentDatabases();
     setInputValue('');
     setSearchResults([]);
     setOpen(false);
@@ -75,13 +92,19 @@ export default function TopBar({
     setOpen(false);
   };
 
+  const handleFocus = () => {
+    // Show recent databases when focusing empty input
+    if (!inputValue && !selectedDatabase && recentDatabases.length > 0) {
+      setOpen(true);
+    }
+  };
+
   const displayValue = selectedDatabase || inputValue;
 
-  // Determine status dot color
   const getStatusColor = () => {
     if (connectionStatus === 'connected') return 'bg-green-500';
     if (connectionStatus === 'error') return 'bg-red-500';
-    return 'bg-yellow-500'; // checking
+    return 'bg-yellow-500';
   };
 
   const getStatusTitle = () => {
@@ -108,16 +131,20 @@ export default function TopBar({
             <PopoverTrigger asChild>
               <div className="relative w-64">
                 <Input
+                  ref={inputRef}
                   value={displayValue}
                   onChange={handleInputChange}
+                  onFocus={handleFocus}
+                  onClick={() => inputRef.current?.focus()}
                   placeholder="Type database name..."
                   className="h-9 pr-8"
                   data-testid="database-selector"
+                  autoComplete="off"
                 />
                 {selectedDatabase && (
                   <button
                     onClick={handleClear}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 z-10"
                     data-testid="clear-database-btn"
                   >
                     <X className="w-4 h-4" />
@@ -133,16 +160,35 @@ export default function TopBar({
             <PopoverContent className="w-64 p-0" align="start">
               <Command>
                 <CommandList>
-                  {searchResults.length === 0 ? (
-                    <CommandEmpty>No database found. Keep typing...</CommandEmpty>
+                  {searchResults.length > 0 ? (
+                    <>
+                      <CommandGroup heading="Search Results">
+                        {searchResults.map((db) => (
+                          <CommandItem
+                            key={db}
+                            value={db}
+                            onSelect={() => handleSelect(db)}
+                            data-testid={`database-option-${db}`}
+                          >
+                            {db}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                      {recentDatabases.length > 0 && <CommandSeparator />}
+                    </>
                   ) : (
-                    <CommandGroup>
-                      {searchResults.map((db) => (
+                    inputValue && <CommandEmpty>No database found. Keep typing...</CommandEmpty>
+                  )}
+                  
+                  {recentDatabases.length > 0 && !inputValue && (
+                    <CommandGroup heading={<span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Recently Opened</span>}>
+                      {recentDatabases.map((db) => (
                         <CommandItem
                           key={db}
                           value={db}
                           onSelect={() => handleSelect(db)}
-                          data-testid={`database-option-${db}`}
+                          data-testid={`recent-database-${db}`}
+                          className="font-mono text-xs"
                         >
                           {db}
                         </CommandItem>
@@ -154,7 +200,6 @@ export default function TopBar({
             </PopoverContent>
           </Popover>
 
-          {/* Connection status indicator */}
           <div 
             className={`w-3 h-3 rounded-full ${getStatusColor()} shadow-sm`}
             title={getStatusTitle()}

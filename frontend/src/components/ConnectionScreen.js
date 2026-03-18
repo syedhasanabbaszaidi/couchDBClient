@@ -1,10 +1,17 @@
 import { useState, useEffect } from 'react';
-import { Database, Plug, Trash2, Edit2 } from 'lucide-react';
+import { Database, Plug, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import axios from 'axios';
+import { 
+  getSavedConnections, 
+  saveConnection as saveConnectionToDB, 
+  deleteSavedConnection,
+  getRecentConnections,
+  addRecentConnection 
+} from '@/lib/localDB';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -19,23 +26,29 @@ export default function ConnectionScreen({ onConnect }) {
   const [recentConnections, setRecentConnections] = useState([]);
 
   useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem('saved_connections') || '[]');
-    setSavedConnections(saved);
-    
-    const recent = JSON.parse(localStorage.getItem('recent_connections') || '[]');
-    setRecentConnections(recent);
+    loadConnections();
   }, []);
+
+  const loadConnections = async () => {
+    try {
+      const saved = await getSavedConnections();
+      setSavedConnections(saved || []);
+      
+      const recent = await getRecentConnections();
+      setRecentConnections(recent || []);
+    } catch (error) {
+      console.error('Failed to load connections:', error);
+    }
+  };
 
   const handleConnect = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      // Check if it's localhost (direct connection)
       const isLocalhost = url.includes('localhost') || url.includes('127.0.0.1');
       
       if (isLocalhost) {
-        // Direct connection test
         const headers = {};
         if (username && password) {
           const credentials = `${username}:${password}`;
@@ -47,16 +60,9 @@ export default function ConnectionScreen({ onConnect }) {
         if (response.data.couchdb) {
           toast.success(`Connected to CouchDB ${response.data.version}!`);
           onConnect({ url, username, password, name: name || url });
-          
-          // Add to recent connections
-          const recentConnections = JSON.parse(localStorage.getItem('recent_connections') || '[]');
-          const newConnection = { url, username, name: name || url };
-          const filtered = recentConnections.filter(c => c.url !== newConnection.url);
-          filtered.unshift(newConnection);
-          localStorage.setItem('recent_connections', JSON.stringify(filtered.slice(0, 5)));
+          await addRecentConnection({ url, username, name: name || url });
         }
       } else {
-        // Use backend proxy for remote connections
         const response = await axios.post(`${API}/couchdb/test-connection`, {
           url,
           username: username || undefined,
@@ -66,13 +72,7 @@ export default function ConnectionScreen({ onConnect }) {
         if (response.data.success) {
           toast.success('Connected to CouchDB successfully!');
           onConnect({ url, username, password, name: name || url });
-          
-          // Add to recent connections
-          const recentConnections = JSON.parse(localStorage.getItem('recent_connections') || '[]');
-          const newConnection = { url, username, name: name || url };
-          const filtered = recentConnections.filter(c => c.url !== newConnection.url);
-          filtered.unshift(newConnection);
-          localStorage.setItem('recent_connections', JSON.stringify(filtered.slice(0, 5)));
+          await addRecentConnection({ url, username, name: name || url });
         }
       }
     } catch (error) {
@@ -87,18 +87,19 @@ export default function ConnectionScreen({ onConnect }) {
     }
   };
 
-  const handleSaveConnection = () => {
+  const handleSaveConnection = async () => {
     if (!name.trim()) {
       toast.error('Please enter a connection name');
       return;
     }
     
-    const saved = JSON.parse(localStorage.getItem('saved_connections') || '[]');
-    const newConn = { id: Date.now().toString(), name, url, username };
-    saved.push(newConn);
-    localStorage.setItem('saved_connections', JSON.stringify(saved));
-    setSavedConnections(saved);
-    toast.success('Connection saved!');
+    try {
+      await saveConnectionToDB({ id: Date.now().toString(), name, url, username });
+      await loadConnections();
+      toast.success('Connection saved!');
+    } catch (error) {
+      toast.error('Failed to save connection');
+    }
   };
 
   const handleLoadConnection = (conn) => {
@@ -107,11 +108,14 @@ export default function ConnectionScreen({ onConnect }) {
     setName(conn.name || '');
   };
 
-  const handleDeleteSaved = (id) => {
-    const filtered = savedConnections.filter(c => c.id !== id);
-    localStorage.setItem('saved_connections', JSON.stringify(filtered));
-    setSavedConnections(filtered);
-    toast.success('Connection deleted');
+  const handleDeleteSaved = async (id) => {
+    try {
+      await deleteSavedConnection(id);
+      await loadConnections();
+      toast.success('Connection deleted');
+    } catch (error) {
+      toast.error('Failed to delete connection');
+    }
   };
 
   return (
@@ -251,7 +255,7 @@ export default function ConnectionScreen({ onConnect }) {
                 <div className="space-y-2 max-h-32 overflow-y-auto">
                   {recentConnections.map((conn, idx) => (
                     <button
-                      key={idx}
+                      key={conn.id || idx}
                       onClick={() => handleLoadConnection(conn)}
                       className="w-full text-left px-3 py-2 text-sm rounded-md border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-colors"
                       data-testid={`recent-connection-${idx}`}

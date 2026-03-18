@@ -15,6 +15,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import { getRecentDocuments, addRecentDocument } from '@/lib/localDB';
 
 export default function Sidebar({
   selectedDocument,
@@ -29,32 +30,36 @@ export default function Sidebar({
   const [isSearching, setIsSearching] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const searchTimeoutRef = useRef(null);
+  const searchInputRef = useRef(null);
 
   useEffect(() => {
     if (database) {
-      const recent = JSON.parse(localStorage.getItem(`recent_docs_${database}`) || '[]');
-      setRecentDocuments(recent);
+      loadRecentDocuments();
     }
-  }, [database]);
-
-  useEffect(() => {
-    if (selectedDocument && selectedDocument !== 'new' && database) {
-      const recent = JSON.parse(localStorage.getItem(`recent_docs_${database}`) || '[]');
-      const filtered = recent.filter(id => id !== selectedDocument);
-      filtered.unshift(selectedDocument);
-      const updated = filtered.slice(0, 20);
-      localStorage.setItem(`recent_docs_${database}`, JSON.stringify(updated));
-      setRecentDocuments(updated);
-    }
-  }, [selectedDocument, database]);
-
-  useEffect(() => {
     return () => {
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, []);
+  }, [database]);
+
+  useEffect(() => {
+    if (selectedDocument && selectedDocument !== 'new' && database) {
+      addRecentDocument(database, selectedDocument).then(() => {
+        loadRecentDocuments();
+      });
+    }
+  }, [selectedDocument, database]);
+
+  const loadRecentDocuments = async () => {
+    if (!database) return;
+    try {
+      const recent = await getRecentDocuments(database);
+      setRecentDocuments(recent || []);
+    } catch (error) {
+      console.error('Failed to load recent documents:', error);
+    }
+  };
 
   const handleSearchChange = (e) => {
     const value = e.target.value;
@@ -104,12 +109,15 @@ export default function Sidebar({
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
               <Input
+                ref={searchInputRef}
                 type="text"
                 placeholder="Search documents by ID..."
                 value={searchQuery}
                 onChange={handleSearchChange}
+                onClick={() => searchInputRef.current?.focus()}
                 className="pl-9 h-9 bg-white"
                 data-testid="search-documents-input"
+                autoComplete="off"
               />
               {isSearching && (
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
