@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Save, RotateCw, Trash2, Copy, Check, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { JsonView, defaultStyles } from 'react-json-view-lite';
+import 'react-json-view-lite/dist/index.css';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,7 +33,9 @@ export default function Editor({
 }) {
   const [content, setContent] = useState('');
   const [originalContent, setOriginalContent] = useState('');
+  const [parsedJson, setParsedJson] = useState(null);
   const [isValid, setIsValid] = useState(true);
+  const [viewMode, setViewMode] = useState('formatted'); // 'formatted' or 'raw'
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showFinalDeleteDialog, setShowFinalDeleteDialog] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -41,16 +45,19 @@ export default function Editor({
       const formatted = JSON.stringify(documentData, null, 2);
       setContent(formatted);
       setOriginalContent(formatted);
+      setParsedJson(documentData);
       setIsValid(true);
     } else if (documentId === 'new') {
       const newDoc = { "_id": generateUUID() };
       const formatted = JSON.stringify(newDoc, null, 2);
       setContent(formatted);
       setOriginalContent('');
+      setParsedJson(newDoc);
       setIsValid(true);
     } else {
       setContent('');
       setOriginalContent('');
+      setParsedJson(null);
     }
   }, [documentData, documentId]);
 
@@ -59,9 +66,11 @@ export default function Editor({
     setContent(newContent);
 
     try {
-      JSON.parse(newContent);
+      const parsed = JSON.parse(newContent);
+      setParsedJson(parsed);
       setIsValid(true);
     } catch (error) {
+      setParsedJson(null);
       setIsValid(false);
     }
   };
@@ -86,7 +95,12 @@ export default function Editor({
 
   const handleRevert = () => {
     setContent(originalContent);
-    setIsValid(true);
+    try {
+      setParsedJson(JSON.parse(originalContent));
+      setIsValid(true);
+    } catch (e) {
+      setParsedJson(null);
+    }
     toast.info('Changes reverted');
   };
 
@@ -131,7 +145,6 @@ export default function Editor({
       const blob = new Blob([jsonString], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       
-      // Use DOM API correctly
       const link = window.document.createElement('a');
       link.href = url;
       link.download = `${documentId || 'document'}.json`;
@@ -173,6 +186,30 @@ export default function Editor({
         </div>
 
         <div className="flex items-center gap-2">
+          {/* View mode toggle */}
+          <div className="flex rounded-md border border-slate-200 overflow-hidden">
+            <button
+              onClick={() => setViewMode('formatted')}
+              className={`px-3 py-1 text-xs font-medium ${
+                viewMode === 'formatted'
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-white text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              Formatted
+            </button>
+            <button
+              onClick={() => setViewMode('raw')}
+              className={`px-3 py-1 text-xs font-medium border-l border-slate-200 ${
+                viewMode === 'raw'
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-white text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              Raw JSON
+            </button>
+          </div>
+
           {documentId !== 'new' && (
             <>
               <Button
@@ -238,16 +275,39 @@ export default function Editor({
       </div>
 
       <div className="flex-1 overflow-auto p-4">
-        <textarea
-          value={content}
-          onChange={handleContentChange}
-          className={`w-full h-full font-mono text-sm leading-6 border-none outline-none resize-none p-4 rounded-md ${
-            isValid ? 'bg-slate-50' : 'bg-red-50 border border-red-200'
-          }`}
-          placeholder="Enter JSON document..."
-          spellCheck={false}
-          data-testid="json-editor-textarea"
-        />
+        {viewMode === 'formatted' && parsedJson && isValid ? (
+          <div className="bg-slate-50 p-4 rounded-md">
+            <JsonView 
+              data={parsedJson} 
+              shouldExpandNode={(level) => level < 3}
+              style={{
+                ...defaultStyles,
+                container: 'font-mono text-sm',
+                label: 'text-blue-600 font-semibold',
+                nullValue: 'text-slate-400',
+                undefinedValue: 'text-slate-400',
+                stringValue: 'text-green-600',
+                booleanValue: 'text-purple-600',
+                numberValue: 'text-orange-600',
+                otherValue: 'text-slate-600',
+                punctuation: 'text-slate-400',
+                collapseIcon: 'cursor-pointer select-none text-slate-600 hover:text-slate-900',
+                expandIcon: 'cursor-pointer select-none text-slate-600 hover:text-slate-900',
+              }}
+            />
+          </div>
+        ) : (
+          <textarea
+            value={content}
+            onChange={handleContentChange}
+            className={`w-full h-full font-mono text-sm leading-6 border-none outline-none resize-none p-4 rounded-md ${
+              isValid ? 'bg-slate-50' : 'bg-red-50 border border-red-200'
+            }`}
+            placeholder="Enter JSON document..."
+            spellCheck={false}
+            data-testid="json-editor-textarea"
+          />
+        )}
       </div>
 
       {documentData && documentData._rev && (
@@ -258,7 +318,6 @@ export default function Editor({
         </div>
       )}
 
-      {/* First delete confirmation */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -284,7 +343,6 @@ export default function Editor({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Second delete confirmation */}
       <AlertDialog open={showFinalDeleteDialog} onOpenChange={setShowFinalDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>

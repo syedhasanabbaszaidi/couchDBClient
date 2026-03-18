@@ -55,14 +55,19 @@ export default function TopBar({
 
   const handleInputChange = (e) => {
     const value = e.target.value;
+    
+    // If user is typing/deleting and database is selected, clear it
+    if (selectedDatabase) {
+      onSelectDatabase('');
+    }
+    
     setInputValue(value);
     
     if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
+      clearTimeout(searchTimeoutRef.current);\n    }
 
     if (!value.trim()) {
-      setOpen(false);
+      setOpen(true); // Show recents even when empty
       setSearchResults([]);
       return;
     }
@@ -90,12 +95,32 @@ export default function TopBar({
     setInputValue('');
     setSearchResults([]);
     setOpen(false);
+    setTimeout(() => inputRef.current?.focus(), 0);
   };
 
   const handleFocus = () => {
-    // Show recent databases when focusing empty input
-    if (!inputValue && !selectedDatabase && recentDatabases.length > 0) {
-      setOpen(true);
+    // Always show recents on focus
+    setOpen(true);
+  };
+
+  const handleClick = () => {
+    // Immediately focus and show recents
+    if (inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.setSelectionRange(
+        inputRef.current.value.length,
+        inputRef.current.value.length
+      );
+    }
+    setOpen(true);
+  };
+
+  const handleKeyDown = (e) => {
+    // Allow backspace to work properly
+    if (e.key === 'Backspace' && selectedDatabase) {
+      e.preventDefault();
+      onSelectDatabase('');
+      setInputValue('');
     }
   };
 
@@ -135,7 +160,14 @@ export default function TopBar({
                   value={displayValue}
                   onChange={handleInputChange}
                   onFocus={handleFocus}
-                  onClick={() => inputRef.current?.focus()}
+                  onClick={handleClick}
+                  onKeyDown={handleKeyDown}
+                  onMouseDown={(e) => {
+                    if (inputRef.current !== document.activeElement) {
+                      e.preventDefault();
+                      inputRef.current?.focus();
+                    }
+                  }}
                   placeholder="Type database name..."
                   className="h-9 pr-8"
                   data-testid="database-selector"

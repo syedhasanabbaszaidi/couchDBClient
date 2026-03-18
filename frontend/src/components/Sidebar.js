@@ -91,6 +91,16 @@ export default function Sidebar({
     setSearchOpen(false);
   };
 
+  const handleSearchClick = () => {
+    if (searchInputRef.current) {
+      searchInputRef.current.focus();
+      searchInputRef.current.setSelectionRange(
+        searchInputRef.current.value.length,
+        searchInputRef.current.value.length
+      );
+    }
+  };
+
   if (!database) {
     return (
       <div className="w-72 bg-slate-50 border-r border-slate-200 flex flex-col overflow-hidden flex-shrink-0" data-testid="sidebar">
@@ -114,7 +124,13 @@ export default function Sidebar({
                 placeholder="Search documents by ID..."
                 value={searchQuery}
                 onChange={handleSearchChange}
-                onClick={() => searchInputRef.current?.focus()}
+                onClick={handleSearchClick}
+                onMouseDown={(e) => {
+                  if (searchInputRef.current !== document.activeElement) {
+                    e.preventDefault();
+                    searchInputRef.current?.focus();
+                  }
+                }}
                 className="pl-9 h-9 bg-white"
                 data-testid="search-documents-input"
                 autoComplete="off"
