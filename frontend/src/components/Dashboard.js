@@ -131,21 +131,27 @@ export default function Dashboard({
   const searchDocuments = async (searchQuery) => {
     if (!selectedDatabase) return [];
     
+    console.log('searchDocuments called with:', searchQuery, 'using startkey/endkey');
+    
     try {
       if (useDirect) {
         // Use startkey/endkey for server-side "startsWith" filtering
+        const params = { 
+          include_docs: false, 
+          startkey: JSON.stringify(searchQuery),
+          endkey: JSON.stringify(searchQuery + '\ufff0'),
+          limit: 100,
+        };
+        console.log('Direct mode params:', params);
+        
         const response = await axios.get(
           `${connection.url}/${selectedDatabase}/_all_docs`,
           {
             headers: getAuthHeader(connection.username, connection.password),
-            params: { 
-              include_docs: false, 
-              startkey: JSON.stringify(searchQuery),
-              endkey: JSON.stringify(searchQuery + '\ufff0'),
-              limit: 100,
-            },
+            params,
           }
         );
+        console.log('Search response:', response.data.rows?.length, 'results');
         return response.data.rows || [];
       } else {
         const response = await axios.get(`${API}/couchdb/documents`, {
