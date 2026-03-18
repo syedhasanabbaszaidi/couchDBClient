@@ -1,72 +1,202 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, HTTPException, Header
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict
-from typing import List
-import uuid
-from datetime import datetime, timezone
-
+from pydantic import BaseModel
+from typing import Optional, Dict, Any, List
+import httpx
+import base64
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
-
-# Create the main app without a prefix
 app = FastAPI()
-
-# Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
+# Models
+class CouchDBConnection(BaseModel):
+    url: str
+    username: Optional[str] = None
+    password: Optional[str] = None
 
-# Define Models
-class StatusCheck(BaseModel):
-    model_config = ConfigDict(extra="ignore")  # Ignore MongoDB's _id field
-    
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    client_name: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+class DocumentSave(BaseModel):
+    document: Dict[str, Any]
 
-class StatusCheckCreate(BaseModel):
-    client_name: str
+class NewDocument(BaseModel):
+    document: Optional[Dict[str, Any]] = None
 
-# Add your routes to the router instead of directly to app
+# Helper function to create auth headers
+def get_auth_header(username: Optional[str], password: Optional[str]):
+    if username and password:
+        credentials = f"{username}:{password}"
+        encoded = base64.b64encode(credentials.encode()).decode()
+        return {"Authorization": f"Basic {encoded}"}
+    return {}
+
+# Routes
 @api_router.get("/")
 async def root():
-    return {"message": "Hello World"}
+    return {"message": "CouchDB Client API"}
 
-@api_router.post("/status", response_model=StatusCheck)
-async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.model_dump()
-    status_obj = StatusCheck(**status_dict)
-    
-    # Convert to dict and serialize datetime to ISO string for MongoDB
-    doc = status_obj.model_dump()
-    doc['timestamp'] = doc['timestamp'].isoformat()
-    
-    _ = await db.status_checks.insert_one(doc)
-    return status_obj
+@api_router.post("/couchdb/test-connection")
+async def test_connection(connection: CouchDBConnection):
+    """Test CouchDB connection"""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            headers = get_auth_header(connection.username, connection.password)
+            response = await client.get(connection.url, headers=headers)
+            response.raise_for_status()
+            return {"success": True, "data": response.json()}
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-@api_router.get("/status", response_model=List[StatusCheck])
-async def get_status_checks():
-    # Exclude MongoDB's _id field from the query results
-    status_checks = await db.status_checks.find({}, {"_id": 0}).to_list(1000)
-    
-    # Convert ISO string timestamps back to datetime objects
-    for check in status_checks:
-        if isinstance(check['timestamp'], str):
-            check['timestamp'] = datetime.fromisoformat(check['timestamp'])
-    
-    return status_checks
+@api_router.get("/couchdb/databases")
+async def list_databases(
+    url: str,
+    username: Optional[str] = None,
+    password: Optional[str] = None
+):
+    """List all databases"""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            headers = get_auth_header(username, password)
+            response = await client.get(f"{url}/_all_dbs", headers=headers)
+            response.raise_for_status()
+            return {"success": True, "databases": response.json()}
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-# Include the router in the main app
+@api_router.get("/couchdb/documents")
+async def list_documents(
+    url: str,
+    database: str,
+    username: Optional[str] = None,
+    password: Optional[str] = None,
+    limit: int = 100,
+    skip: int = 0
+):
+    """List documents in a database"""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            headers = get_auth_header(username, password)
+            params = {"include_docs": "false", "limit": limit, "skip": skip}
+            response = await client.get(
+                f"{url}/{database}/_all_docs",
+                headers=headers,
+                params=params
+            )
+            response.raise_for_status()
+            return {"success": True, "data": response.json()}
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/couchdb/document")
+async def get_document(
+    url: str,
+    database: str,
+    doc_id: str,
+    username: Optional[str] = None,
+    password: Optional[str] = None
+):
+    """Get a specific document"""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            headers = get_auth_header(username, password)
+            response = await client.get(
+                f"{url}/{database}/{doc_id}",
+                headers=headers
+            )
+            response.raise_for_status()
+            return {"success": True, "document": response.json()}
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.put("/couchdb/document")
+async def save_document(
+    url: str,
+    database: str,
+    doc_id: str,
+    data: DocumentSave,
+    username: Optional[str] = None,
+    password: Optional[str] = None
+):
+    """Save/update a document"""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            headers = get_auth_header(username, password)
+            headers["Content-Type"] = "application/json"
+            response = await client.put(
+                f"{url}/{database}/{doc_id}",
+                headers=headers,
+                json=data.document
+            )
+            response.raise_for_status()
+            return {"success": True, "data": response.json()}
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/couchdb/document")
+async def create_document(
+    url: str,
+    database: str,
+    data: NewDocument,
+    username: Optional[str] = None,
+    password: Optional[str] = None
+):
+    """Create a new document"""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            headers = get_auth_header(username, password)
+            headers["Content-Type"] = "application/json"
+            doc = data.document if data.document else {}
+            response = await client.post(
+                f"{url}/{database}",
+                headers=headers,
+                json=doc
+            )
+            response.raise_for_status()
+            return {"success": True, "data": response.json()}
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.delete("/couchdb/document")
+async def delete_document(
+    url: str,
+    database: str,
+    doc_id: str,
+    rev: str,
+    username: Optional[str] = None,
+    password: Optional[str] = None
+):
+    """Delete a document"""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            headers = get_auth_header(username, password)
+            response = await client.delete(
+                f"{url}/{database}/{doc_id}?rev={rev}",
+                headers=headers
+            )
+            response.raise_for_status()
+            return {"success": True, "data": response.json()}
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 app.include_router(api_router)
 
 app.add_middleware(
@@ -77,13 +207,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-
-@app.on_event("shutdown")
-async def shutdown_db_client():
-    client.close()
