@@ -25,20 +25,37 @@ export default function TopBar({
 }) {
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
 
   const handleSelect = (db) => {
     onSelectDatabase(db);
     setInputValue('');
+    setIsTyping(false);
     setOpen(false);
   };
 
   const handleClear = () => {
     onSelectDatabase('');
     setInputValue('');
+    setIsTyping(false);
   };
 
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    setInputValue(value);
+    setIsTyping(true);
+    setOpen(true);
+    // If user starts typing, clear the selection
+    if (selectedDatabase) {
+      onSelectDatabase('');
+    }
+  };
+
+  const displayValue = isTyping ? inputValue : (selectedDatabase || inputValue);
+  const searchValue = isTyping ? inputValue : '';
+  
   const filteredDatabases = databases.filter(db =>
-    db.toLowerCase().includes(inputValue.toLowerCase())
+    db.toLowerCase().includes(searchValue.toLowerCase())
   );
 
   return (
@@ -58,19 +75,14 @@ export default function TopBar({
           <PopoverTrigger asChild>
             <div className="relative w-64">
               <Input
-                value={selectedDatabase || inputValue}
-                onChange={(e) => {
-                  if (!selectedDatabase) {
-                    setInputValue(e.target.value);
-                    setOpen(true);
-                  }
-                }}
+                value={displayValue}
+                onChange={handleInputChange}
                 onFocus={() => setOpen(true)}
                 placeholder="Type database name..."
                 className="h-9 pr-8"
                 data-testid="database-selector"
               />
-              {selectedDatabase && (
+              {selectedDatabase && !isTyping && (
                 <button
                   onClick={handleClear}
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
