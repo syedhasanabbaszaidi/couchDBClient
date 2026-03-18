@@ -64,7 +64,8 @@ export default function TopBar({
     setInputValue(value);
     
     if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);\n    }
+      clearTimeout(searchTimeoutRef.current);
+    }
 
     if (!value.trim()) {
       setOpen(true); // Show recents even when empty
