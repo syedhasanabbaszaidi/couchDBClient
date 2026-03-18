@@ -175,6 +175,14 @@ export const getRecentDocuments = async (database) => {
     .map(d => d.docId);
 };
 
+// Get ALL recent documents across all databases (for cross-database navigation)
+export const getAllRecentDocuments = async () => {
+  const all = await getAll('recent_documents');
+  return all
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .slice(0, 20);
+};
+
 export const addRecentDocument = async (database, docId) => {
   const existing = await getAll('recent_documents');
   
@@ -219,6 +227,7 @@ export default {
   getRecentDatabases,
   addRecentDatabase,
   getRecentDocuments,
+  getAllRecentDocuments,
   addRecentDocument,
   getTabState,
   saveTabState,

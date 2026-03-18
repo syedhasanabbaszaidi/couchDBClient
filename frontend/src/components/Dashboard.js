@@ -333,6 +333,7 @@ export default function Dashboard({
           selectedDocument={selectedDocument}
           onSelectDocument={loadDocument}
           onSearchDocuments={searchDocuments}
+          onSwitchDatabase={setSelectedDatabase}
           onNewDocument={() => {
             setSelectedDocument('new');
             setDocumentContent(null);

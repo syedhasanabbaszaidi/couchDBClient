@@ -15,7 +15,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { getRecentDocuments, addRecentDocument } from '@/lib/localDB';
+import { getRecentDocuments, getAllRecentDocuments, addRecentDocument } from '@/lib/localDB';
 
 export default function Sidebar({
   selectedDocument,
@@ -23,6 +23,7 @@ export default function Sidebar({
   onSearchDocuments,
   onNewDocument,
   database,
+  onSwitchDatabase,
 }) {
   const [recentDocuments, setRecentDocuments] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -33,9 +34,7 @@ export default function Sidebar({
   const searchInputRef = useRef(null);
 
   useEffect(() => {
-    if (database) {
-      loadRecentDocuments();
-    }
+    loadRecentDocuments();
     return () => {
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
@@ -52,12 +51,26 @@ export default function Sidebar({
   }, [selectedDocument, database]);
 
   const loadRecentDocuments = async () => {
-    if (!database) return;
     try {
-      const recent = await getRecentDocuments(database);
-      setRecentDocuments(recent || []);
+      // Load ALL recent documents from all databases
+      const allRecent = await getAllRecentDocuments();
+      setRecentDocuments(allRecent || []);
     } catch (error) {
       console.error('Failed to load recent documents:', error);
+    }
+  };
+
+  const handleSelectDocument = async (doc) => {
+    // Check if document is from a different database
+    if (doc.database !== database) {
+      // Switch database first
+      await onSwitchDatabase(doc.database);
+      // Small delay to let database switch complete
+      setTimeout(() => {
+        onSelectDocument(doc.docId);
+      }, 100);
+    } else {
+      onSelectDocument(doc.docId);
     }
   };
 
@@ -206,21 +219,29 @@ export default function Sidebar({
               <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Recently Opened</span>
             </div>
             <div className="space-y-1">
-              {recentDocuments.map((docId) => (
+              {recentDocuments.map((doc) => (
                 <button
-                  key={docId}
-                  onClick={() => onSelectDocument(docId)}
+                  key={`${doc.database}-${doc.docId}`}
+                  onClick={() => handleSelectDocument(doc)}
                   className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md cursor-pointer transition-all ${
-                    selectedDocument === docId
+                    selectedDocument === doc.docId && database === doc.database
                       ? 'bg-blue-50 text-blue-900 shadow-sm border border-blue-200 font-medium'
                       : 'text-slate-600 hover:bg-slate-200/50 hover:text-slate-900'
                   }`}
-                  data-testid={`recent-doc-${docId}`}
+                  data-testid={`recent-doc-${doc.docId}`}
                 >
                   <FileJson className={`w-4 h-4 flex-shrink-0 ${
-                    selectedDocument === docId ? 'text-blue-600' : ''
+                    selectedDocument === doc.docId && database === doc.database ? 'text-blue-600' : ''
                   }`} />
-                  <span className="truncate font-mono text-xs">{docId}</span>
+                  <div className="flex-1 truncate text-left">
+                    <span className="font-mono text-xs block truncate">{doc.docId}</span>
+                    {doc.database !== database && (
+                      <span className="text-xs text-orange-600 font-medium">{doc.database}</span>
+                    )}
+                  </div>
+                  {doc.database !== database && (
+                    <span className="text-xs text-slate-400">↗</span>
+                  )}
                 </button>
               ))}
             </div>
