@@ -72,16 +72,29 @@ export default function Sidebar({
     if (!value.trim()) {
       setSearchOpen(false);
       setSearchResults([]);
+      setIsSearching(false);
       return;
     }
 
     setIsSearching(true);
     searchTimeoutRef.current = setTimeout(async () => {
-      const results = await onSearchDocuments(value);
-      setSearchResults(results || []);
-      setIsSearching(false);
-      setSearchOpen(true);
-    }, 3000);
+      try {
+        console.log('Searching for:', value);
+        const results = await onSearchDocuments(value);
+        console.log('Search results:', results);
+        setSearchResults(results || []);
+        setIsSearching(false);
+        if (results && results.length > 0) {
+          setSearchOpen(true);
+        } else {
+          setSearchOpen(true); // Show "no results" message
+        }
+      } catch (error) {
+        console.error('Search error:', error);
+        setIsSearching(false);
+        setSearchOpen(false);
+      }
+    }, 1500); // Reduced from 3000ms to 1500ms
   };
 
   const handleSelectFromSearch = (docId) => {
@@ -121,7 +134,7 @@ export default function Sidebar({
               <Input
                 ref={searchInputRef}
                 type="text"
-                placeholder="Search documents by ID..."
+                placeholder={isSearching ? "Searching..." : "Search documents by ID..."}
                 value={searchQuery}
                 onChange={handleSearchChange}
                 onClick={handleSearchClick}
@@ -134,6 +147,7 @@ export default function Sidebar({
                 className="pl-9 h-9 bg-white"
                 data-testid="search-documents-input"
                 autoComplete="off"
+                disabled={!database}
               />
               {isSearching && (
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
@@ -145,10 +159,17 @@ export default function Sidebar({
           <PopoverContent className="w-72 p-0" align="start">
             <Command>
               <CommandList>
-                {searchResults.length === 0 ? (
-                  <CommandEmpty>No documents found. Keep typing...</CommandEmpty>
+                {isSearching ? (
+                  <div className="p-4 text-center text-sm text-slate-500">
+                    <div className="animate-spin h-6 w-6 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+                    Searching database...
+                  </div>
+                ) : searchResults.length === 0 ? (
+                  <CommandEmpty>
+                    {searchQuery ? 'No documents found matching your search.' : 'Type to search...'}
+                  </CommandEmpty>
                 ) : (
-                  <CommandGroup>
+                  <CommandGroup heading={`Found ${searchResults.length} document(s)`}>
                     {searchResults.map((doc) => (
                       <CommandItem
                         key={doc.id}
