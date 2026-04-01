@@ -70,16 +70,13 @@ Open `http://localhost:3000` in your browser.
 ### Prerequisites
 - Node.js 18+
 - yarn
-- For Windows builds on Mac/Linux: Wine (optional)
-- For Mac builds on Windows/Linux: Not supported (must build on Mac)
+- macOS for `.dmg` builds
+- Windows build can be produced from macOS using Wine (supported in this repo), but native Windows CI is recommended for release confidence
 
 ### Step 1: Build the Frontend
 
 ```bash
 cd frontend
-
-# Set the backend URL for production (empty for standalone use)
-echo "REACT_APP_BACKEND_URL=" > .env.production
 
 # Build the React app
 yarn build
@@ -96,27 +93,43 @@ yarn install
 
 ### Step 3: Build Desktop App
 
-#### For macOS (run on Mac):
+#### macOS Apple Silicon (arm64)
 ```bash
 cd electron
-yarn build:mac
+yarn build:mac:arm64
 ```
 
-Output: `electron/dist/CouchDB Client-1.0.0.dmg` and `electron/dist/CouchDB Client-1.0.0-mac.zip`
+Output:
+- `electron/dist/CouchDB Client-1.0.0-arm64.dmg`
+- `electron/dist/CouchDB Client-1.0.0-arm64-mac.zip`
 
-#### For Windows (run on Windows, or Mac/Linux with Wine):
+#### macOS Intel (x64)
 ```bash
 cd electron
-yarn build:win
+yarn build:mac:x64
 ```
 
-Output: `electron/dist/CouchDB Client Setup 1.0.0.exe` (installer) and `electron/dist/CouchDB Client 1.0.0.exe` (portable)
+Output:
+- `electron/dist/CouchDB Client-1.0.0-x64.dmg`
+- `electron/dist/CouchDB Client-1.0.0-x64-mac.zip`
 
-#### Build for All Platforms:
+#### Windows x64 (installer + portable)
 ```bash
 cd electron
-yarn build:all
+yarn build:win:x64
 ```
+
+Output:
+- `electron/dist/CouchDB Client Setup 1.0.0.exe`
+- `electron/dist/CouchDB Client 1.0.0.exe`
+
+#### Build all release artifacts + checksums
+```bash
+cd electron
+yarn build:release
+```
+
+This generates all required artifacts above and writes `electron/dist/CHECKSUMS.txt`.
 
 ### Step 4: Run Desktop App (Development)
 
@@ -129,6 +142,8 @@ yarn start
 cd electron
 NODE_ENV=development yarn electron
 ```
+
+For the full release runbook and GitHub Release checklist, see `RELEASE.md`.
 
 ---
 
@@ -155,6 +170,7 @@ NODE_ENV=development yarn electron
 │
 ├── electron/                 # Electron desktop wrapper
 │   ├── main.js
+│   ├── scripts/
 │   └── package.json
 │
 └── README.md
@@ -188,6 +204,9 @@ For connecting to remote CouchDB servers (not localhost), you'll need to either:
 1. Run the backend proxy alongside the app
 2. Ensure your CouchDB server has proper CORS headers configured
 
+### Code Signing
+Current release builds are unsigned. macOS Gatekeeper and Windows SmartScreen warnings are expected until signing/notarization is added.
+
 ### Adding an App Icon
 Place an `icon.png` (512x512 recommended) in the `electron/` directory before building.
 
@@ -200,8 +219,8 @@ Place an `icon.png` (512x512 recommended) in the `electron/` directory before bu
 - For remote: Run the backend proxy or configure CORS on your CouchDB server
 
 ### Desktop app shows blank screen
-- Ensure you ran `yarn build` in the frontend directory first
-- Check that `frontend/build/index.html` exists
+- Ensure you ran `yarn build` in `frontend`
+- Ensure Electron build scripts are used (`yarn build:mac:*` / `yarn build:win:x64`) so `electron/frontend-build` is prepared automatically
 
 ### Build fails on Windows
 - Install Visual Studio Build Tools

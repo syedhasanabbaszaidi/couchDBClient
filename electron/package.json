@@ -9,9 +9,14 @@
     "electron": "electron .",
     "electron:dev": "NODE_ENV=development electron .",
     "prepare:frontend": "node scripts/prepare-frontend.js",
-    "build:mac": "yarn prepare:frontend && electron-builder --mac",
-    "build:win": "yarn prepare:frontend && electron-builder --win --x64",
-    "build:all": "yarn prepare:frontend && electron-builder --mac --win --x64"
+    "checksums:release": "node scripts/generate-checksums.js",
+    "build:mac": "yarn build:mac:arm64",
+    "build:mac:arm64": "yarn prepare:frontend && electron-builder --mac --arm64",
+    "build:mac:x64": "yarn prepare:frontend && electron-builder --mac --x64 && node scripts/normalize-mac-x64-artifacts.js",
+    "build:win": "yarn build:win:x64",
+    "build:win:x64": "yarn prepare:frontend && electron-builder --win --x64",
+    "build:all": "yarn build:release",
+    "build:release": "yarn build:mac:arm64 && yarn build:mac:x64 && yarn build:win:x64 && yarn checksums:release"
   },
   "devDependencies": {
     "electron": "^28.1.3",
