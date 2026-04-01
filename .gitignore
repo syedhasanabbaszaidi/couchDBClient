@@ -4,6 +4,7 @@ node_modules/
 # Build outputs
 frontend/build/
 electron/dist/
+electron/frontend-build/
 
 # Environment files (contain secrets)
 .env

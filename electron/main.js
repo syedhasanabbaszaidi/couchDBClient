@@ -3,6 +3,7 @@ const path = require('path');
 const isDev = process.env.NODE_ENV === 'development';
 
 function createWindow() {
+  const bundledIndexPath = path.join(__dirname, 'frontend-build', 'index.html');
   const mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -21,8 +22,21 @@ function createWindow() {
     mainWindow.loadURL('http://localhost:3000');
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../frontend/build/index.html'));
+    mainWindow.loadFile(bundledIndexPath);
   }
+
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+    console.error('Window failed to load', {
+      errorCode,
+      errorDescription,
+      validatedURL,
+      bundledIndexPath,
+    });
+  });
+
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    console.error('Renderer process exited', details);
+  });
 
   mainWindow.on('closed', () => {
     app.quit();

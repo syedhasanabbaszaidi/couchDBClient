@@ -8,9 +8,10 @@
   "scripts": {
     "electron": "electron .",
     "electron:dev": "NODE_ENV=development electron .",
-    "build:mac": "electron-builder --mac",
-    "build:win": "electron-builder --win",
-    "build:all": "electron-builder --mac --win"
+    "prepare:frontend": "node scripts/prepare-frontend.js",
+    "build:mac": "yarn prepare:frontend && electron-builder --mac",
+    "build:win": "yarn prepare:frontend && electron-builder --win --x64",
+    "build:all": "yarn prepare:frontend && electron-builder --mac --win --x64"
   },
   "devDependencies": {
     "electron": "^28.1.3",
@@ -24,7 +25,8 @@
     },
     "files": [
       "main.js",
-      "../frontend/build/**/*"
+      "package.json",
+      "frontend-build/**/*"
     ],
     "mac": {
       "category": "public.app-category.developer-tools",
