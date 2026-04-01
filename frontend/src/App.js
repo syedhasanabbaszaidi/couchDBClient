@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import '@/App.css';
 import { Toaster } from '@/components/ui/sonner';
 import ConnectionScreen from '@/components/ConnectionScreen';
 import TabManager from '@/components/TabManager';
+import { ensureSessionStarted, trackAnalyticsEvent } from '@/lib/analytics';
+import { isDesktopRuntime } from '@/lib/runtime';
 
 function App() {
   const [connections, setConnections] = useState([]);
@@ -10,6 +12,28 @@ function App() {
   
   // Always start with connection screen - don't auto-restore tabs
   // This ensures fresh connections with passwords
+
+  useEffect(() => {
+    if (isDesktopRuntime()) {
+      return;
+    }
+
+    void ensureSessionStarted('connection-screen');
+  }, []);
+
+  useEffect(() => {
+    if (isDesktopRuntime()) {
+      return;
+    }
+
+    const page = connections.length === 0 ? 'connection-screen' : 'session-dashboard';
+    void trackAnalyticsEvent('page_view', {
+      page,
+      activeConnections: connections.length,
+    }, {
+      entrypoint: page,
+    });
+  }, [connections.length]);
 
   const handleConnect = (connectionData) => {
     const newConnection = {
@@ -74,7 +98,7 @@ function App() {
         )}
       </div>
       <footer className="h-8 flex items-center justify-center bg-slate-50 border-t border-slate-200 text-xs text-slate-500">
-        Built by Hasan Abbas
+        CouchDB Client by Hasan Abbas
       </footer>
       <Toaster position="top-right" />
     </div>

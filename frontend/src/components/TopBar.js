@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Database, LogOut, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import ProductActions from '@/components/ProductActions';
 import {
   Command,
   CommandEmpty,
@@ -254,16 +255,19 @@ export default function TopBar({
         <span className="text-xs text-slate-500 font-mono">{connectionUrl}</span>
       </div>
 
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onDisconnect}
-        className="h-9 text-slate-600 hover:text-slate-900"
-        data-testid="disconnect-btn"
-      >
-        <LogOut className="w-4 h-4 mr-2" />
-        Disconnect
-      </Button>
+      <div className="flex items-center gap-2">
+        <ProductActions entrypointPrefix="topbar" compact />
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onDisconnect}
+          className="h-9 text-slate-600 hover:text-slate-900"
+          data-testid="disconnect-btn"
+        >
+          <LogOut className="w-4 h-4 mr-2" />
+          Disconnect
+        </Button>
+      </div>
     </div>
   );
 }

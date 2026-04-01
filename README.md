@@ -1,6 +1,7 @@
 # CouchDB Client
 
 A minimal, developer-focused CouchDB client for managing databases and documents. Available as a web app and standalone desktop application for Windows and Mac.
+Built by Hasan Abbas.
 
 ## Features
 
@@ -14,6 +15,9 @@ A minimal, developer-focused CouchDB client for managing databases and documents
 - Download and copy document JSON
 - Persistent storage of connections and recent items (IndexedDB)
 - Connection status indicator
+- Desktop download prompts inside the web app
+- Gated desktop downloads with name and email capture
+- Minimal product analytics for web usage and download interest
 
 ## Tech Stack
 
@@ -21,8 +25,11 @@ A minimal, developer-focused CouchDB client for managing databases and documents
 - **Backend**: Node.js, Express (optional proxy for remote connections)
 - **Desktop**: Electron
 - **Storage**: IndexedDB (client-side, no external database needed)
+- **Product Data**: Postgres for leads and usage records
+- **Analytics**: Self-hosted PostHog
+- **Binary Hosting**: GitHub Releases
 
-**No Python dependencies. No external services required.**
+Core CouchDB browsing works without external services. For the hosted web-product rollout, Postgres, PostHog, and GitHub Releases are used.
 
 ---
 
@@ -39,7 +46,7 @@ A minimal, developer-focused CouchDB client for managing databases and documents
 cd frontend
 yarn install
 
-# Backend (optional - only needed for non-localhost connections)
+# Backend (recommended for remote connections, downloads, and analytics)
 cd ../backend
 yarn install
 ```
@@ -47,7 +54,7 @@ yarn install
 ### 2. Run the App
 
 ```bash
-# Terminal 1: Start backend (optional)
+# Terminal 1: Start backend
 cd backend
 yarn start
 
@@ -62,6 +69,12 @@ Open `http://localhost:3000` in your browser.
 
 - **Direct Mode**: For `localhost` or `127.0.0.1` URLs - connects directly from browser to CouchDB
 - **Proxy Mode**: For remote URLs - routes through the Node.js backend
+
+For the hosted web product, the backend also powers:
+- gated DMG/EXE downloads
+- GitHub Release asset redirects
+- Postgres-backed lead capture
+- minimal analytics forwarding to PostHog
 
 ---
 
@@ -164,7 +177,10 @@ For the full release runbook and GitHub Release checklist, see `RELEASE.md`.
 │   │   └── App.js
 │   └── package.json
 │
-├── backend/                  # Node.js backend (optional proxy)
+├── backend/                  # Node.js backend for proxy, downloads, and analytics
+│   ├── db.js
+│   ├── posthog.js
+│   ├── releases.js
 │   ├── server.js
 │   └── package.json
 │
@@ -191,6 +207,45 @@ For the full release runbook and GitHub Release checklist, see `RELEASE.md`.
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `PORT` | Server port | 8001 |
+| `DATABASE_URL` | Hosted Postgres connection string for leads and usage records | unset |
+| `PGSSL` | Set to `true` when your Postgres host requires SSL | `false` |
+| `POSTHOG_HOST` | Self-hosted PostHog base URL | unset |
+| `POSTHOG_PROJECT_API_KEY` | PostHog project API key for event capture | unset |
+| `RELEASE_TAG` | GitHub Release tag used for desktop redirects | `v1.0.0` |
+| `GITHUB_REPOSITORY` | `owner/repo` used to build release download URLs | `syedhasanabbaszaidi/client` |
+
+---
+
+## Web Product Rollout
+
+The web app remains the main product surface. It now includes:
+
+- a top-right menu with `About` and `Settings`
+- desktop download prompts on the connection screen and in active sessions
+- a gated download form that asks for name and email before redirecting to DMG or EXE assets
+- credit placement for Hasan Abbas across the connection page, About dialog, download surfaces, and footer
+
+### Rollout Dependencies
+
+Before deploying the hosted web product, make sure these are ready:
+
+1. A hosted Postgres database for leads, download events, web sessions, and usage events.
+2. A self-hosted PostHog instance for analytics dashboards.
+3. Published GitHub Release assets for the current desktop version.
+4. Environment variables set in the backend host for Postgres, PostHog, and release metadata.
+
+### What Gets Tracked
+
+The hosted web product records minimal adoption data:
+
+- page visits
+- session starts
+- connection attempts and outcomes
+- download form submissions
+- download redirects
+- basic platform and location headers when available
+
+It does not store CouchDB URLs, usernames, or passwords in backend analytics tables.
 
 ---
 

@@ -5,6 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import axios from 'axios';
+import ProductActions from '@/components/ProductActions';
+import DesktopDownloadCallout from '@/components/DesktopDownloadCallout';
+import { trackAnalyticsEvent } from '@/lib/analytics';
 import { 
   getSavedConnections, 
   saveConnection as saveConnectionToDB, 
@@ -47,6 +50,14 @@ export default function ConnectionScreen({ onConnect }) {
 
     try {
       const isLocalhost = url.includes('localhost') || url.includes('127.0.0.1');
+      const connectionMode = isLocalhost ? 'direct' : 'proxy';
+
+      await trackAnalyticsEvent('connection_attempted', {
+        connectionMode,
+        hasUsername: Boolean(username),
+      }, {
+        entrypoint: 'connection-screen',
+      });
       
       if (isLocalhost) {
         const headers = {};
@@ -59,6 +70,12 @@ export default function ConnectionScreen({ onConnect }) {
         const response = await axios.get(url, { headers });
         if (response.data.couchdb) {
           toast.success(`Connected to CouchDB ${response.data.version}!`);
+          await trackAnalyticsEvent('connection_succeeded', {
+            connectionMode,
+            couchdbVersion: response.data.version,
+          }, {
+            entrypoint: 'connection-screen',
+          });
           onConnect({ url, username, password, name: name || url });
           await addRecentConnection({ url, username, name: name || url });
         }
@@ -71,6 +88,11 @@ export default function ConnectionScreen({ onConnect }) {
 
         if (response.data.success) {
           toast.success('Connected to CouchDB successfully!');
+          await trackAnalyticsEvent('connection_succeeded', {
+            connectionMode,
+          }, {
+            entrypoint: 'connection-screen',
+          });
           onConnect({ url, username, password, name: name || url });
           await addRecentConnection({ url, username, name: name || url });
         }
@@ -81,6 +103,12 @@ export default function ConnectionScreen({ onConnect }) {
                        error.response?.data?.reason || 
                        error.message || 
                        'Failed to connect to CouchDB. Make sure CouchDB is running and accessible.';
+      await trackAnalyticsEvent('connection_failed', {
+        connectionMode: url.includes('localhost') || url.includes('127.0.0.1') ? 'direct' : 'proxy',
+        errorType: error.response?.status ? 'http_error' : 'network_error',
+      }, {
+        entrypoint: 'connection-screen',
+      });
       toast.error(errorMsg);
     } finally {
       setLoading(false);
@@ -119,15 +147,28 @@ export default function ConnectionScreen({ onConnect }) {
   };
 
   return (
-    <div className="flex items-center justify-center h-full bg-slate-50">
-      <div className="w-full max-w-2xl bg-white border border-slate-200 shadow-xl shadow-slate-200/50 p-8 rounded-lg">
+    <div className="h-full bg-slate-50 flex flex-col">
+      <div className="border-b border-slate-200 bg-white/95 backdrop-blur">
+        <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-6">
+          <div>
+            <p className="text-sm font-semibold text-slate-900 font-heading">CouchDB Client</p>
+            <p className="text-xs text-slate-500">Browser workspace and desktop companion by Hasan Abbas</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <ProductActions entrypointPrefix="connection-header" />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-1 items-center justify-center p-6">
+        <div className="w-full max-w-5xl bg-white border border-slate-200 shadow-xl shadow-slate-200/50 p-8 rounded-lg">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 bg-slate-900 rounded-md">
             <Database className="w-6 h-6 text-white" />
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 font-heading">CouchDB Client</h1>
-            <p className="text-sm text-slate-500 font-body">Connect to your database</p>
+            <p className="text-sm text-slate-500 font-body">Connect to your database and keep desktop access close by</p>
           </div>
         </div>
 
@@ -217,6 +258,8 @@ export default function ConnectionScreen({ onConnect }) {
           </div>
 
           <div className="space-y-4">
+            <DesktopDownloadCallout entrypointPrefix="connection-screen" />
+
             {savedConnections.length > 0 && (
               <div>
                 <p className="text-xs font-medium uppercase tracking-wider text-slate-500 mb-3">Saved Connections</p>
@@ -269,6 +312,7 @@ export default function ConnectionScreen({ onConnect }) {
             )}
           </div>
         </div>
+      </div>
       </div>
     </div>
   );
