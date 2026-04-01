@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "A minimal CouchDB client for managing databases and documents",
   "main": "main.js",
-  "author": "Your Name",
+  "author": "Hasan Abbas",
   "license": "MIT",
   "scripts": {
     "electron": "electron .",
@@ -12,10 +12,8 @@
     "build:win": "electron-builder --win",
     "build:all": "electron-builder --mac --win"
   },
-  "dependencies": {
-    "electron": "^28.1.3"
-  },
   "devDependencies": {
+    "electron": "^28.1.3",
     "electron-builder": "^24.9.1"
   },
   "build": {
