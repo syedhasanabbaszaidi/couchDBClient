@@ -57,20 +57,25 @@ function App() {
   };
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-white">
-      {connections.length === 0 ? (
-        <ConnectionScreen onConnect={handleConnect} />
-      ) : (
-        <TabManager
-          connections={connections}
-          activeTabId={activeTabId}
-          onSwitchTab={handleSwitchTab}
-          onCloseTab={handleCloseTab}
-          onNewConnection={handleConnect}
-          onConnectionError={handleConnectionError}
-          onConnectionSuccess={handleConnectionSuccess}
-        />
-      )}
+    <div className="h-screen w-screen overflow-hidden bg-white flex flex-col">
+      <div className="flex-1 overflow-hidden">
+        {connections.length === 0 ? (
+          <ConnectionScreen onConnect={handleConnect} />
+        ) : (
+          <TabManager
+            connections={connections}
+            activeTabId={activeTabId}
+            onSwitchTab={handleSwitchTab}
+            onCloseTab={handleCloseTab}
+            onNewConnection={handleConnect}
+            onConnectionError={handleConnectionError}
+            onConnectionSuccess={handleConnectionSuccess}
+          />
+        )}
+      </div>
+      <footer className="h-8 flex items-center justify-center bg-slate-50 border-t border-slate-200 text-xs text-slate-500">
+        Built by Hasan Abbas
+      </footer>
       <Toaster position="top-right" />
     </div>
   );
