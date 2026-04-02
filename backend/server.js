@@ -23,6 +23,12 @@ function getAuthHeader(username, password) {
   return {};
 }
 
+function buildCouchUrl(baseUrl, ...segments) {
+  const trimmedBaseUrl = String(baseUrl || '').replace(/\/+$/, '');
+  const encodedSegments = segments.map((segment) => encodeURIComponent(String(segment)));
+  return `${trimmedBaseUrl}/${encodedSegments.join('/')}`;
+}
+
 function sanitizeMetadata(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
     return {};
@@ -210,7 +216,7 @@ app.get('/api/couchdb/documents', async (req, res) => {
     if (endkey) params.endkey = JSON.stringify(endkey);
     
     const response = await axios.get(
-      `${url}/${database}/_all_docs`,
+      buildCouchUrl(url, database, '_all_docs'),
       {
         headers,
         params,
@@ -232,7 +238,7 @@ app.get('/api/couchdb/document', async (req, res) => {
     const { url, database, doc_id, username, password } = req.query;
     const headers = getAuthHeader(username, password);
     const response = await axios.get(
-      `${url}/${database}/${doc_id}`,
+      buildCouchUrl(url, database, doc_id),
       { headers, timeout: 10000 }
     );
     res.json({ success: true, document: response.data });
@@ -254,7 +260,7 @@ app.put('/api/couchdb/document', async (req, res) => {
       'Content-Type': 'application/json'
     };
     const response = await axios.put(
-      `${url}/${database}/${doc_id}`,
+      buildCouchUrl(url, database, doc_id),
       document,
       { headers, timeout: 10000 }
     );
@@ -277,7 +283,7 @@ app.post('/api/couchdb/document', async (req, res) => {
       'Content-Type': 'application/json'
     };
     const response = await axios.post(
-      `${url}/${database}`,
+      buildCouchUrl(url, database),
       document || {},
       { headers, timeout: 10000 }
     );
@@ -296,8 +302,12 @@ app.delete('/api/couchdb/document', async (req, res) => {
     const { url, database, doc_id, rev, username, password } = req.query;
     const headers = getAuthHeader(username, password);
     const response = await axios.delete(
-      `${url}/${database}/${doc_id}?rev=${rev}`,
-      { headers, timeout: 10000 }
+      buildCouchUrl(url, database, doc_id),
+      {
+        headers,
+        params: { rev },
+        timeout: 10000,
+      }
     );
     res.json({ success: true, data: response.data });
   } catch (error) {

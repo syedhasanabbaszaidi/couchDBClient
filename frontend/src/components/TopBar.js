@@ -19,6 +19,10 @@ import {
 import { Clock } from 'lucide-react';
 import { getRecentDatabases, addRecentDatabase } from '@/lib/localDB';
 
+function keepInputFocus(event) {
+  event.preventDefault();
+}
+
 export default function TopBar({
   selectedDatabase,
   onSelectDatabase,
@@ -202,7 +206,12 @@ export default function TopBar({
                 )}
               </div>
             </PopoverTrigger>
-            <PopoverContent className="w-64 p-0" align="start">
+            <PopoverContent
+              className="w-64 p-0"
+              align="start"
+              onOpenAutoFocus={keepInputFocus}
+              onCloseAutoFocus={keepInputFocus}
+            >
               <Command>
                 <CommandList>
                   {searchResults.length > 0 ? (

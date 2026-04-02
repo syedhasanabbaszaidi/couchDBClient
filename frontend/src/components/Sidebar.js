@@ -17,6 +17,10 @@ import {
 } from '@/components/ui/popover';
 import { getRecentDocuments, getAllRecentDocuments, addRecentDocument, clearRecentDocuments } from '@/lib/localDB';
 
+function keepInputFocus(event) {
+  event.preventDefault();
+}
+
 export default function Sidebar({
   selectedDocument,
   onSelectDocument,
@@ -176,7 +180,12 @@ export default function Sidebar({
               )}
             </div>
           </PopoverTrigger>
-          <PopoverContent className="w-72 p-0" align="start">
+          <PopoverContent
+            className="w-72 p-0"
+            align="start"
+            onOpenAutoFocus={keepInputFocus}
+            onCloseAutoFocus={keepInputFocus}
+          >
             <Command>
               <CommandList>
                 {isSearching ? (

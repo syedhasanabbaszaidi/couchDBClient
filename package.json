@@ -1,0 +1,12 @@
+{
+  "name": "couchdb-client-workspace",
+  "private": true,
+  "scripts": {
+    "dev:web": "concurrently -n backend,frontend -c green,blue \"yarn --cwd backend dev\" \"yarn --cwd frontend start\"",
+    "build:web": "yarn --cwd frontend build",
+    "install:all": "yarn install && yarn --cwd backend install && yarn --cwd frontend install && yarn --cwd electron install"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

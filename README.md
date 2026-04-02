@@ -65,6 +65,23 @@ yarn start
 
 Open `http://localhost:3000` in your browser.
 
+### One-command local web testing
+
+If you want to test the web app locally before rebuilding desktop binaries:
+
+```bash
+cd /Users/hasan/development/client
+yarn install
+yarn dev:web
+```
+
+This starts:
+
+- frontend at `http://localhost:3000`
+- backend at `http://localhost:8001`
+
+The repo now includes a development-only frontend config in [frontend/.env.development](/Users/hasan/development/client/frontend/.env.development), so the browser app automatically talks to the local backend during `yarn start`.
+
 ### Connection Modes
 
 - **Direct Mode**: For `localhost` or `127.0.0.1` URLs - connects directly from browser to CouchDB

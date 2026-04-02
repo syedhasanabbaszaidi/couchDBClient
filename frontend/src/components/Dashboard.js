@@ -8,6 +8,12 @@ import { toast } from 'sonner';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
+function buildCouchPath(baseUrl, ...segments) {
+  const trimmedBaseUrl = baseUrl.replace(/\/+$/, '');
+  const encodedSegments = segments.map((segment) => encodeURIComponent(String(segment)));
+  return `${trimmedBaseUrl}/${encodedSegments.join('/')}`;
+}
+
 // Helper function to create auth headers for direct CouchDB connection
 function getAuthHeader(username, password) {
   if (username && password) {
@@ -145,7 +151,7 @@ export default function Dashboard({
         console.log('Direct mode params:', params);
         
         const response = await axios.get(
-          `${connection.url}/${selectedDatabase}/_all_docs`,
+          buildCouchPath(connection.url, selectedDatabase, '_all_docs'),
           {
             headers: getAuthHeader(connection.username, connection.password),
             params,
@@ -186,7 +192,7 @@ export default function Dashboard({
     try {
       if (useDirect) {
         const response = await axios.get(
-          `${connection.url}/${targetDb}/${docId}`,
+          buildCouchPath(connection.url, targetDb, docId),
           {
             headers: getAuthHeader(connection.username, connection.password),
           }
@@ -226,7 +232,7 @@ export default function Dashboard({
     try {
       if (useDirect) {
         const response = await axios.put(
-          `${connection.url}/${selectedDatabase}/${docId}`,
+          buildCouchPath(connection.url, selectedDatabase, docId),
           content,
           {
             headers: {
@@ -266,7 +272,7 @@ export default function Dashboard({
     try {
       if (useDirect) {
         const response = await axios.post(
-          `${connection.url}/${selectedDatabase}`,
+          buildCouchPath(connection.url, selectedDatabase),
           content,
           {
             headers: {
@@ -305,9 +311,10 @@ export default function Dashboard({
     try {
       if (useDirect) {
         await axios.delete(
-          `${connection.url}/${selectedDatabase}/${docId}?rev=${rev}`,
+          buildCouchPath(connection.url, selectedDatabase, docId),
           {
             headers: getAuthHeader(connection.username, connection.password),
+            params: { rev },
           }
         );
         toast.success('Document deleted successfully');
