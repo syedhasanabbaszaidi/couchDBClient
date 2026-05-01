@@ -1,9 +1,29 @@
 import axios from 'axios';
-import { detectAnalyticsPlatform } from '@/lib/platform';
+import {
+  DESKTOP_RELEASE_LABEL,
+  DOWNLOAD_PLATFORM_OPTIONS,
+  detectAnalyticsPlatform,
+} from '@/lib/platform';
 import { isDesktopRuntime } from '@/lib/runtime';
+import { API, hasBackendApi } from '@/lib/api';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+function getLocalReleaseCatalog() {
+  return {
+    success: true,
+    releaseTag: DESKTOP_RELEASE_LABEL,
+    githubRepository: null,
+    assets: Object.fromEntries(
+      DOWNLOAD_PLATFORM_OPTIONS.map((option) => [
+        option.key,
+        {
+          ...option,
+          assetName: option.key,
+          downloadUrl: null,
+        },
+      ])
+    ),
+  };
+}
 
 function createId() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -60,7 +80,7 @@ export function getAnalyticsContext() {
 }
 
 export async function trackAnalyticsEvent(eventName, metadata = {}, options = {}) {
-  if (isDesktopRuntime()) {
+  if (isDesktopRuntime() || !hasBackendApi()) {
     return;
   }
 
@@ -97,11 +117,25 @@ export async function ensureSessionStarted(pageName) {
 }
 
 export async function fetchReleaseCatalog() {
+  if (!hasBackendApi()) {
+    return getLocalReleaseCatalog();
+  }
+
   const response = await axios.get(`${API}/releases/catalog`);
   return response.data;
 }
 
 export async function submitDownloadLead({ name, email, selectedPlatform, entrypoint }) {
+  if (!hasBackendApi()) {
+    const error = new Error('Download backend is not configured for this local build.');
+    error.response = {
+      data: {
+        detail: 'Download backend is not configured for this local build.',
+      },
+    };
+    throw error;
+  }
+
   const context = getAnalyticsContext();
   const response = await axios.post(`${API}/downloads/lead`, {
     name,
@@ -120,6 +154,10 @@ export async function submitDownloadLead({ name, email, selectedPlatform, entryp
 }
 
 export function buildDownloadRedirectUrl({ selectedPlatform, leadId, entrypoint }) {
+  if (!hasBackendApi()) {
+    return '';
+  }
+
   const context = getAnalyticsContext();
   const params = new URLSearchParams({
     platform: selectedPlatform,

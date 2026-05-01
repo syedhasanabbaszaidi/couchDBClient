@@ -4,9 +4,8 @@ import Sidebar from '@/components/Sidebar';
 import Editor from '@/components/Editor';
 import axios from 'axios';
 import { toast } from 'sonner';
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { API, shouldUseDirectCouchConnection } from '@/lib/api';
+import { getTabState, saveTabState } from '@/lib/localDB';
 
 function buildCouchPath(baseUrl, ...segments) {
   const trimmedBaseUrl = baseUrl.replace(/\/+$/, '');
@@ -24,13 +23,6 @@ function getAuthHeader(username, password) {
   return {};
 }
 
-// Check if URL is localhost/127.0.0.1 (direct connection needed)
-function isLocalhost(url) {
-  return url.includes('localhost') || url.includes('127.0.0.1');
-}
-
-import { getTabState, saveTabState } from '@/lib/localDB';
-
 export default function Dashboard({ 
   connection, 
   onDisconnect, 
@@ -41,7 +33,7 @@ export default function Dashboard({
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [documentContent, setDocumentContent] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('checking');
-  const useDirect = isLocalhost(connection.url);
+  const useDirect = shouldUseDirectCouchConnection(connection.url);
 
   // Load tab state on mount
   useEffect(() => {

@@ -48,6 +48,15 @@ cd electron
 yarn build:release
 ```
 
+For a local Mac-only installer that avoids hosted runtime services:
+
+```bash
+cd /Users/hasan/development/client
+yarn build:mac:local:arm64
+```
+
+Use `yarn build:mac:local:x64` for Intel Mac output.
+
 ## 3) Expected Artifacts
 
 After release build, `electron/dist` must contain:
@@ -131,7 +140,7 @@ If you publish from UI, upload the same assets and paste the same notes.
 
 - Binaries are unsigned.
 - macOS Gatekeeper and Windows SmartScreen warnings are expected.
-- Remote CouchDB access may require backend proxy/CORS configuration depending on deployment.
+- Local desktop builds include an embedded CouchDB proxy, so they do not require the hosted backend for CouchDB operations.
 
 ## 8) Release Notes Template
 
@@ -161,6 +170,5 @@ Use this as `RELEASE_NOTES_v1.0.0.md`:
 - Signed/notarized releases are planned in a future milestone.
 
 ### Known Limitations
-- Standalone mode works best for localhost CouchDB.
-- Remote CouchDB may require backend proxy or CORS setup.
+- Standalone desktop mode includes an embedded CouchDB proxy and does not require the hosted backend for CouchDB operations.
 ```

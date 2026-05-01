@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const distDir = path.resolve(__dirname, '../dist');
 const outputPath = path.join(distDir, 'CHECKSUMS.txt');
 
-const requiredArtifacts = [
+const defaultRequiredArtifacts = [
   'CouchDB Client-1.0.0-arm64.dmg',
   'CouchDB Client-1.0.0-arm64-mac.zip',
   'CouchDB Client-1.0.0-x64.dmg',
@@ -13,6 +13,13 @@ const requiredArtifacts = [
   'CouchDB Client Setup 1.0.0.exe',
   'CouchDB Client 1.0.0.exe',
 ];
+
+const configuredArtifacts = (process.env.CHECKSUM_ARTIFACTS || '')
+  .split(',')
+  .map((fileName) => fileName.trim())
+  .filter(Boolean);
+
+const requiredArtifacts = configuredArtifacts.length > 0 ? configuredArtifacts : defaultRequiredArtifacts;
 
 function sha256File(filePath) {
   return new Promise((resolve, reject) => {

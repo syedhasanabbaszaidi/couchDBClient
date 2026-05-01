@@ -131,8 +131,9 @@ export default function ProductActions({ entrypointPrefix, compact = false }) {
                 <div>
                   <p className="font-medium text-slate-900">Usage analytics</p>
                   <p className="mt-1">
-                    The web app records minimal events such as page visits, download requests, and anonymous connection
-                    outcomes. It does not store CouchDB credentials or server URLs in backend analytics.
+                    {desktopRuntime
+                      ? 'This local desktop build does not send usage analytics. Saved connections, recent items, and tab state stay on this machine.'
+                      : 'The web app records minimal events such as page visits, download requests, and anonymous connection outcomes. It does not store CouchDB credentials or server URLs in backend analytics.'}
                   </p>
                 </div>
               </div>

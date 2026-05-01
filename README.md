@@ -103,6 +103,31 @@ For the hosted web product, the backend also powers:
 - macOS for `.dmg` builds
 - Windows build can be produced from macOS using Wine (supported in this repo), but native Windows CI is recommended for release confidence
 
+### Local macOS installer build
+
+Use this path when you want a local Mac installer that does not depend on Emergent, hosted analytics, Postgres, or GitHub release redirects at runtime:
+
+```bash
+cd /Users/hasan/development/client
+yarn build:mac:local:arm64
+```
+
+For Intel Macs:
+
+```bash
+yarn build:mac:local:x64
+```
+
+The local build script does not install packages from the internet. It expects the existing `node_modules` folders to be present, builds the frontend with `REACT_APP_BACKEND_URL` empty, bundles a local Electron CouchDB proxy, and writes Mac-only checksums.
+
+Output:
+
+- `electron/dist/CouchDB Client-1.0.0-arm64.dmg`
+- `electron/dist/CouchDB Client-1.0.0-arm64-mac.zip`
+- `electron/dist/CHECKSUMS.txt`
+
+Inside the desktop app, CouchDB API calls go through an embedded localhost proxy owned by the Electron process. Product analytics and download-gating endpoints are disabled in the local desktop build.
+
 ### Step 1: Build the Frontend
 
 ```bash
@@ -202,7 +227,9 @@ For the full release runbook and GitHub Release checklist, see `RELEASE.md`.
 │   └── package.json
 │
 ├── electron/                 # Electron desktop wrapper
+│   ├── local-api.js           # Embedded desktop CouchDB proxy
 │   ├── main.js
+│   ├── preload.js             # Runtime config bridge for desktop frontend
 │   ├── scripts/
 │   └── package.json
 │
@@ -217,7 +244,7 @@ For the full release runbook and GitHub Release checklist, see `RELEASE.md`.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `REACT_APP_BACKEND_URL` | Backend API URL | (empty for standalone) |
+| `REACT_APP_BACKEND_URL` | Hosted web backend API URL | (empty for standalone/local desktop builds) |
 
 ### Backend Environment Variables
 

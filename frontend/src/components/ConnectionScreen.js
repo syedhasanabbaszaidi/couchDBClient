@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import axios from 'axios';
 import ProductActions from '@/components/ProductActions';
 import { trackAnalyticsEvent } from '@/lib/analytics';
+import { API, shouldUseDirectCouchConnection } from '@/lib/api';
 import { 
   getSavedConnections, 
   saveConnection as saveConnectionToDB, 
@@ -14,9 +15,6 @@ import {
   getRecentConnections,
   addRecentConnection 
 } from '@/lib/localDB';
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
 
 export default function ConnectionScreen({ onConnect }) {
   const [url, setUrl] = useState('http://localhost:9004');
@@ -48,8 +46,8 @@ export default function ConnectionScreen({ onConnect }) {
     setLoading(true);
 
     try {
-      const isLocalhost = url.includes('localhost') || url.includes('127.0.0.1');
-      const connectionMode = isLocalhost ? 'direct' : 'proxy';
+      const useDirect = shouldUseDirectCouchConnection(url);
+      const connectionMode = useDirect ? 'direct' : 'proxy';
 
       await trackAnalyticsEvent('connection_attempted', {
         connectionMode,
@@ -58,7 +56,7 @@ export default function ConnectionScreen({ onConnect }) {
         entrypoint: 'connection-screen',
       });
       
-      if (isLocalhost) {
+      if (useDirect) {
         const headers = {};
         if (username && password) {
           const credentials = `${username}:${password}`;
@@ -103,7 +101,7 @@ export default function ConnectionScreen({ onConnect }) {
                        error.message || 
                        'Failed to connect to CouchDB. Make sure CouchDB is running and accessible.';
       await trackAnalyticsEvent('connection_failed', {
-        connectionMode: url.includes('localhost') || url.includes('127.0.0.1') ? 'direct' : 'proxy',
+        connectionMode: shouldUseDirectCouchConnection(url) ? 'direct' : 'proxy',
         errorType: error.response?.status ? 'http_error' : 'network_error',
       }, {
         entrypoint: 'connection-screen',
