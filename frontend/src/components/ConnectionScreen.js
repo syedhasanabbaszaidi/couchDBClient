@@ -6,7 +6,6 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import axios from 'axios';
 import ProductActions from '@/components/ProductActions';
-import DesktopDownloadCallout from '@/components/DesktopDownloadCallout';
 import { trackAnalyticsEvent } from '@/lib/analytics';
 import { 
   getSavedConnections, 
@@ -258,8 +257,6 @@ export default function ConnectionScreen({ onConnect }) {
           </div>
 
           <div className="space-y-4">
-            <DesktopDownloadCallout entrypointPrefix="connection-screen" />
-
             {savedConnections.length > 0 && (
               <div>
                 <p className="text-xs font-medium uppercase tracking-wider text-slate-500 mb-3">Saved Connections</p>
