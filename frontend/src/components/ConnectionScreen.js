@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import axios from 'axios';
 import ProductActions from '@/components/ProductActions';
 import { trackAnalyticsEvent } from '@/lib/analytics';
-import { API, shouldUseDirectCouchConnection } from '@/lib/api';
+import { apiUrl, getApiBase, shouldUseDirectCouchConnection } from '@/lib/api';
 import { 
   getSavedConnections, 
   saveConnection as saveConnectionToDB, 
@@ -17,7 +17,7 @@ import {
 } from '@/lib/localDB';
 
 export default function ConnectionScreen({ onConnect }) {
-  const [url, setUrl] = useState('http://localhost:9004');
+  const [url, setUrl] = useState('http://localhost:6003');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -55,6 +55,8 @@ export default function ConnectionScreen({ onConnect }) {
       }, {
         entrypoint: 'connection-screen',
       });
+
+      const normalizedUrl = url.trim().replace(/\/+$/, '');
       
       if (useDirect) {
         const headers = {};
@@ -64,8 +66,9 @@ export default function ConnectionScreen({ onConnect }) {
           headers['Authorization'] = `Basic ${encoded}`;
         }
         
-        const response = await axios.get(url, { headers });
+        const response = await axios.get(normalizedUrl, { headers });
         if (response.data.couchdb) {
+          await axios.get(`${normalizedUrl}/_all_dbs`, { headers });
           toast.success(`Connected to CouchDB ${response.data.version}!`);
           await trackAnalyticsEvent('connection_succeeded', {
             connectionMode,
@@ -73,12 +76,17 @@ export default function ConnectionScreen({ onConnect }) {
           }, {
             entrypoint: 'connection-screen',
           });
-          onConnect({ url, username, password, name: name || url });
-          await addRecentConnection({ url, username, name: name || url });
+          onConnect({ url: normalizedUrl, username, password, name: name || normalizedUrl });
+          await addRecentConnection({ url: normalizedUrl, username, password, name: name || normalizedUrl });
         }
       } else {
-        const response = await axios.post(`${API}/couchdb/test-connection`, {
-          url,
+        const apiBase = getApiBase();
+        if (!apiBase) {
+          throw new Error('Local CouchDB proxy is not available. Restart the desktop app and try again.');
+        }
+
+        const response = await axios.post(apiUrl('/couchdb/test-connection'), {
+          url: normalizedUrl,
           username: username || undefined,
           password: password || undefined,
         });
@@ -90,8 +98,8 @@ export default function ConnectionScreen({ onConnect }) {
           }, {
             entrypoint: 'connection-screen',
           });
-          onConnect({ url, username, password, name: name || url });
-          await addRecentConnection({ url, username, name: name || url });
+          onConnect({ url: normalizedUrl, username, password, name: name || normalizedUrl });
+          await addRecentConnection({ url: normalizedUrl, username, password, name: name || normalizedUrl });
         }
       }
     } catch (error) {
@@ -119,7 +127,8 @@ export default function ConnectionScreen({ onConnect }) {
     }
     
     try {
-      await saveConnectionToDB({ id: Date.now().toString(), name, url, username });
+      const normalizedUrl = url.trim().replace(/\/+$/, '');
+      await saveConnectionToDB({ id: Date.now().toString(), name, url: normalizedUrl, username, password });
       await loadConnections();
       toast.success('Connection saved!');
     } catch (error) {
@@ -130,6 +139,7 @@ export default function ConnectionScreen({ onConnect }) {
   const handleLoadConnection = (conn) => {
     setUrl(conn.url);
     setUsername(conn.username || '');
+    setPassword(conn.password || '');
     setName(conn.name || '');
   };
 
@@ -149,7 +159,17 @@ export default function ConnectionScreen({ onConnect }) {
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-6">
           <div>
             <p className="text-sm font-semibold text-slate-900 font-heading">CouchDB Client</p>
-            <p className="text-xs text-slate-500">Browser workspace and desktop companion by Hasan Abbas</p>
+            <p className="text-xs text-slate-500">
+              Browser workspace and desktop companion by{' '}
+              <a
+                href="https://hasanabbas.in"
+                target="_blank"
+                rel="noreferrer"
+                className="text-blue-600 hover:text-blue-700 underline underline-offset-2"
+              >
+                https://hasanabbas.in
+              </a>
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <ProductActions entrypointPrefix="connection-header" />

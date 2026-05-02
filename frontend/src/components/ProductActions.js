@@ -72,8 +72,10 @@ export default function ProductActions({ entrypointPrefix, compact = false }) {
             Settings
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => setAboutOpen(true)} className="text-slate-500">
-            Built by Hasan Abbas
+          <DropdownMenuItem asChild className="text-slate-500">
+            <a href="https://hasanabbas.in" target="_blank" rel="noreferrer">
+              Built by https://hasanabbas.in
+            </a>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -89,7 +91,16 @@ export default function ProductActions({ entrypointPrefix, compact = false }) {
 
           <div className="space-y-4 text-sm text-slate-600">
             <p>
-              CouchDB Client is designed and built by <span className="font-medium text-slate-900">Hasan Abbas</span>.
+              CouchDB Client is designed and built by{' '}
+              <a
+                href="https://hasanabbas.in"
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium text-blue-600 hover:text-blue-700 underline underline-offset-2"
+              >
+                https://hasanabbas.in
+              </a>
+              .
               The web app gives you instant access in the browser, while the desktop apps provide easier repeat access
               on macOS and Windows.
             </p>

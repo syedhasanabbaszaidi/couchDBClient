@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Save, RotateCw, Trash2, Copy, Check, Download } from 'lucide-react';
+import { AlertCircle, Save, RotateCw, Trash2, Copy, Check, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { JsonView, defaultStyles } from 'react-json-view-lite';
+import { JsonView, collapseAllNested, defaultStyles } from 'react-json-view-lite';
 import 'react-json-view-lite/dist/index.css';
 import {
   AlertDialog,
@@ -30,12 +30,13 @@ export default function Editor({
   onCreate,
   onDelete,
   database,
+  documentError,
 }) {
   const [content, setContent] = useState('');
   const [originalContent, setOriginalContent] = useState('');
   const [parsedJson, setParsedJson] = useState(null);
   const [isValid, setIsValid] = useState(true);
-  const [viewMode, setViewMode] = useState('formatted');
+  const [viewMode, setViewMode] = useState('raw');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showFinalDeleteDialog, setShowFinalDeleteDialog] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -47,6 +48,7 @@ export default function Editor({
       setOriginalContent(formatted);
       setParsedJson(documentData);
       setIsValid(true);
+      setViewMode('raw');
     } else if (documentId === 'new') {
       const newDoc = { "_id": generateUUID() };
       const formatted = JSON.stringify(newDoc, null, 2);
@@ -54,6 +56,7 @@ export default function Editor({
       setOriginalContent('');
       setParsedJson(newDoc);
       setIsValid(true);
+      setViewMode('raw');
     } else {
       setContent('');
       setOriginalContent('');
@@ -172,6 +175,33 @@ export default function Editor({
     );
   }
 
+  if (documentError) {
+    return (
+      <div className="flex-1 bg-white flex flex-col relative overflow-hidden" data-testid="editor-error">
+        <div className="h-14 border-b border-slate-200 flex items-center px-4 flex-shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-xs font-medium uppercase tracking-wider text-slate-500">
+              {database}
+            </span>
+            <span className="text-slate-300">/</span>
+            <span className="text-sm font-mono text-slate-900 truncate">
+              {documentId}
+            </span>
+          </div>
+        </div>
+        <div className="flex-1 flex items-center justify-center p-8">
+          <div className="max-w-xl text-center">
+            <AlertCircle className="h-10 w-10 text-red-500 mx-auto mb-3" />
+            <p className="text-sm font-semibold text-slate-900">{documentError}</p>
+            <p className="text-xs text-slate-500 mt-2">
+              The previous document content has been cleared. Select another document or search again.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 bg-white flex flex-col relative overflow-hidden" data-testid="editor">
       <div className="h-14 border-b border-slate-200 flex items-center justify-between px-4 flex-shrink-0">
@@ -279,11 +309,13 @@ export default function Editor({
             <div className="text-xs text-slate-500 mb-2">Click "Raw JSON" button above to edit, or copy and paste to external editor</div>
             <JsonView 
               data={parsedJson} 
-              shouldExpandNode={() => true}
+              shouldExpandNode={collapseAllNested}
+              clickToExpandNode
               style={{
                 ...defaultStyles,
                 container: 'font-mono text-sm',
                 label: 'text-blue-600 font-semibold cursor-pointer',
+                clickableLabel: 'text-blue-600 font-semibold cursor-pointer hover:text-blue-800',
                 nullValue: 'text-slate-400',
                 undefinedValue: 'text-slate-400',
                 stringValue: 'text-green-600',
@@ -291,8 +323,9 @@ export default function Editor({
                 numberValue: 'text-orange-600',
                 otherValue: 'text-slate-600',
                 punctuation: 'text-slate-400',
-                collapseIcon: 'cursor-pointer select-none text-slate-900 hover:text-blue-600 font-bold',
-                expandIcon: 'cursor-pointer select-none text-slate-900 hover:text-blue-600 font-bold',
+                collapseIcon: 'json-toggle-icon json-collapse-icon',
+                expandIcon: 'json-toggle-icon json-expand-icon',
+                collapsedContent: 'json-collapsed-content',
               }}
             />
           </div>

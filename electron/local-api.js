@@ -229,15 +229,17 @@ function getReleaseCatalog() {
 async function handleCouchRequest(req, res, route) {
   if (route.pathname === '/api/couchdb/test-connection' && req.method === 'POST') {
     const body = await readJsonBody(req);
+    const headers = getAuthHeader(body.username, body.password);
     const data = await requestJson(body.url, {
-      headers: getAuthHeader(body.username, body.password),
+      headers,
     });
+    await requestJson(buildCouchUrl(body.url, '_all_dbs'), { headers });
     sendJson(req, res, 200, { success: true, data });
     return true;
   }
 
   if (route.pathname === '/api/couchdb/databases' && req.method === 'GET') {
-    const data = await requestJson(`${route.searchParams.get('url')}/_all_dbs`, {
+    const data = await requestJson(buildCouchUrl(route.searchParams.get('url'), '_all_dbs'), {
       headers: getAuthHeader(route.searchParams.get('username'), route.searchParams.get('password')),
     });
     sendJson(req, res, 200, { success: true, databases: data });

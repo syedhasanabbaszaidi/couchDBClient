@@ -98,7 +98,15 @@ function App() {
         )}
       </div>
       <footer className="h-8 flex items-center justify-center bg-slate-50 border-t border-slate-200 text-xs text-slate-500">
-        CouchDB Client by Hasan Abbas
+        CouchDB Client by{' '}
+        <a
+          href="https://hasanabbas.in"
+          target="_blank"
+          rel="noreferrer"
+          className="text-blue-600 hover:text-blue-700 underline underline-offset-2"
+        >
+          https://hasanabbas.in
+        </a>
       </footer>
       <Toaster position="top-right" />
     </div>

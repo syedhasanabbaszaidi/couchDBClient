@@ -5,7 +5,7 @@ import {
   detectAnalyticsPlatform,
 } from '@/lib/platform';
 import { isDesktopRuntime } from '@/lib/runtime';
-import { API, hasBackendApi } from '@/lib/api';
+import { apiUrl, hasBackendApi } from '@/lib/api';
 
 function getLocalReleaseCatalog() {
   return {
@@ -85,7 +85,7 @@ export async function trackAnalyticsEvent(eventName, metadata = {}, options = {}
   }
 
   const context = getAnalyticsContext();
-  await axios.post(`${API}/analytics/event`, {
+  await axios.post(apiUrl('/analytics/event'), {
     eventName,
     metadata,
     entrypoint: options.entrypoint || null,
@@ -121,7 +121,7 @@ export async function fetchReleaseCatalog() {
     return getLocalReleaseCatalog();
   }
 
-  const response = await axios.get(`${API}/releases/catalog`);
+  const response = await axios.get(apiUrl('/releases/catalog'));
   return response.data;
 }
 
@@ -137,7 +137,7 @@ export async function submitDownloadLead({ name, email, selectedPlatform, entryp
   }
 
   const context = getAnalyticsContext();
-  const response = await axios.post(`${API}/downloads/lead`, {
+  const response = await axios.post(apiUrl('/downloads/lead'), {
     name,
     email,
     selectedPlatform,
@@ -171,5 +171,5 @@ export function buildDownloadRedirectUrl({ selectedPlatform, leadId, entrypoint 
     params.set('leadId', leadId);
   }
 
-  return `${API}/releases/download?${params.toString()}`;
+  return `${apiUrl('/releases/download')}?${params.toString()}`;
 }

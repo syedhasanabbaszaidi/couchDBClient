@@ -8,6 +8,7 @@
     "build:mac:local:arm64": "scripts/build-mac-local.sh arm64",
     "build:mac:local:x64": "scripts/build-mac-local.sh x64",
     "build:mac:local:all": "scripts/build-mac-local.sh all",
+    "build:local:installers": "scripts/build-local-installers.sh",
     "test:local": "CI=true yarn --cwd frontend test --watchAll=false --passWithNoTests --watchman=false",
     "install:all": "yarn install && yarn --cwd backend install && yarn --cwd frontend install && yarn --cwd electron install"
   },

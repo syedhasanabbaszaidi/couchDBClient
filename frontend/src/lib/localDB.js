@@ -2,7 +2,7 @@
 // Works in both web browsers and Electron apps
 
 const DB_NAME = 'couchdb_client_db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let db = null;
 
@@ -51,6 +51,13 @@ const initDB = () => {
       // Store for tab states
       if (!database.objectStoreNames.contains('tab_states')) {
         database.createObjectStore('tab_states', { keyPath: 'tabId' });
+      }
+
+      // Store for favourite buckets per connection
+      if (!database.objectStoreNames.contains('favorite_buckets')) {
+        const store = database.createObjectStore('favorite_buckets', { keyPath: 'id' });
+        store.createIndex('connectionUrl', 'connectionUrl', { unique: false });
+        store.createIndex('timestamp', 'timestamp', { unique: false });
       }
     };
   });
@@ -168,28 +175,29 @@ export const addRecentDatabase = async (database) => {
 // Recent documents per database (last 20)
 export const getRecentDocuments = async (database) => {
   const all = await getAll('recent_documents');
-  return all
+  const documents = all
     .filter(d => d.database === database)
-    .sort((a, b) => b.timestamp - a.timestamp)
-    .slice(0, 20)
+    .sort((a, b) => a.timestamp - b.timestamp);
+
+  return documents
+    .slice(Math.max(documents.length - 20, 0))
     .map(d => d.docId);
 };
 
 // Get ALL recent documents across all databases (for cross-database navigation)
 export const getAllRecentDocuments = async () => {
   const all = await getAll('recent_documents');
-  return all
-    .sort((a, b) => b.timestamp - a.timestamp)
-    .slice(0, 20);
+  const documents = all.sort((a, b) => a.timestamp - b.timestamp);
+  return documents.slice(Math.max(documents.length - 20, 0));
 };
 
 export const addRecentDocument = async (database, docId) => {
   const existing = await getAll('recent_documents');
-  
-  // Remove existing entry for this document in this database
-  const toDelete = existing.filter(d => d.database === database && d.docId === docId);
-  for (const item of toDelete) {
-    await deleteRecord('recent_documents', item.id);
+
+  // Keep original opening order. Re-selecting a document should not move it.
+  const alreadyOpened = existing.some(d => d.database === database && d.docId === docId);
+  if (alreadyOpened) {
+    return;
   }
 
   await put('recent_documents', {
@@ -199,13 +207,11 @@ export const addRecentDocument = async (database, docId) => {
   });
 
   // Keep only last 20 per database
-  const allForDb = await getRecentDocuments(database);
+  const allForDb = (await getAll('recent_documents'))
+    .filter(d => d.database === database)
+    .sort((a, b) => a.timestamp - b.timestamp);
   if (allForDb.length > 20) {
-    const allRecords = await getAll('recent_documents');
-    const toDeleteItems = allRecords
-      .filter(d => d.database === database)
-      .sort((a, b) => b.timestamp - a.timestamp)
-      .slice(20);
+    const toDeleteItems = allForDb.slice(0, allForDb.length - 20);
     for (const item of toDeleteItems) {
       await deleteRecord('recent_documents', item.id);
     }
@@ -230,6 +236,44 @@ export const getTabState = (tabId) => get('tab_states', tabId);
 export const saveTabState = (tabId, state) => put('tab_states', { tabId, ...state });
 export const deleteTabState = (tabId) => deleteRecord('tab_states', tabId);
 
+function getFavoriteBucketId(connectionUrl, database) {
+  return `${connectionUrl}::${database}`;
+}
+
+export const getFavoriteBuckets = async (connectionUrl) => {
+  const all = await getAll('favorite_buckets');
+  return all
+    .filter(bucket => bucket.connectionUrl === connectionUrl)
+    .sort((a, b) => a.name.localeCompare(b.name));
+};
+
+export const isFavoriteBucket = async (connectionUrl, database) => {
+  const record = await get('favorite_buckets', getFavoriteBucketId(connectionUrl, database));
+  return Boolean(record);
+};
+
+export const addFavoriteBucket = (connectionUrl, database) => put('favorite_buckets', {
+  id: getFavoriteBucketId(connectionUrl, database),
+  connectionUrl,
+  name: database,
+  timestamp: Date.now(),
+});
+
+export const removeFavoriteBucket = (connectionUrl, database) => deleteRecord(
+  'favorite_buckets',
+  getFavoriteBucketId(connectionUrl, database)
+);
+
+export const toggleFavoriteBucket = async (connectionUrl, database) => {
+  if (await isFavoriteBucket(connectionUrl, database)) {
+    await removeFavoriteBucket(connectionUrl, database);
+    return false;
+  }
+
+  await addFavoriteBucket(connectionUrl, database);
+  return true;
+};
+
 export default {
   initDB,
   getSavedConnections,
@@ -246,4 +290,9 @@ export default {
   getTabState,
   saveTabState,
   deleteTabState,
+  getFavoriteBuckets,
+  isFavoriteBucket,
+  addFavoriteBucket,
+  removeFavoriteBucket,
+  toggleFavoriteBucket,
 };

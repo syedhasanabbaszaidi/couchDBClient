@@ -180,6 +180,7 @@ app.post('/api/couchdb/test-connection', async (req, res) => {
     const { url, username, password } = req.body;
     const headers = getAuthHeader(username, password);
     const response = await axios.get(url, { headers, timeout: 10000 });
+    await axios.get(buildCouchUrl(url, '_all_dbs'), { headers, timeout: 10000 });
     res.json({ success: true, data: response.data });
   } catch (error) {
     res.status(error.response?.status || 500).json({
@@ -194,7 +195,7 @@ app.get('/api/couchdb/databases', async (req, res) => {
   try {
     const { url, username, password } = req.query;
     const headers = getAuthHeader(username, password);
-    const response = await axios.get(`${url}/_all_dbs`, { headers, timeout: 10000 });
+    const response = await axios.get(buildCouchUrl(url, '_all_dbs'), { headers, timeout: 10000 });
     res.json({ success: true, databases: response.data });
   } catch (error) {
     res.status(error.response?.status || 500).json({

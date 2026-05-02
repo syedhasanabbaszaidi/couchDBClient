@@ -12,11 +12,30 @@ function getRuntimeBackendUrl() {
   return window.couchdbClientRuntime?.apiBaseUrl || '';
 }
 
-export const BACKEND_URL = normalizeUrl(getRuntimeBackendUrl() || process.env.REACT_APP_BACKEND_URL);
-export const API = BACKEND_URL ? `${BACKEND_URL}/api` : '';
+export function getBackendUrl() {
+  return normalizeUrl(getRuntimeBackendUrl() || process.env.REACT_APP_BACKEND_URL);
+}
+
+export function getApiBase() {
+  const backendUrl = getBackendUrl();
+  return backendUrl ? `${backendUrl}/api` : '';
+}
+
+export function apiUrl(path) {
+  const apiBase = getApiBase();
+
+  if (!apiBase) {
+    return '';
+  }
+
+  return `${apiBase}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
+export const BACKEND_URL = getBackendUrl();
+export const API = getApiBase();
 
 export function hasBackendApi() {
-  return Boolean(API);
+  return Boolean(getApiBase());
 }
 
 export function isLocalhostUrl(url) {
@@ -30,7 +49,7 @@ export function isLocalhostUrl(url) {
 }
 
 export function shouldUseDirectCouchConnection(url) {
-  if (isDesktopRuntime() && hasBackendApi()) {
+  if (isDesktopRuntime()) {
     return false;
   }
 

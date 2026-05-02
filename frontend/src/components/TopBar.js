@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Database, LogOut, X } from 'lucide-react';
+import { Database, LogOut, Star, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import ProductActions from '@/components/ProductActions';
@@ -17,7 +17,13 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Clock } from 'lucide-react';
-import { getRecentDatabases, addRecentDatabase } from '@/lib/localDB';
+import {
+  getRecentDatabases,
+  addRecentDatabase,
+  getFavoriteBuckets,
+  isFavoriteBucket,
+  toggleFavoriteBucket,
+} from '@/lib/localDB';
 
 function keepInputFocus(event) {
   event.preventDefault();
@@ -36,6 +42,8 @@ export default function TopBar({
   const [inputValue, setInputValue] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [recentDatabases, setRecentDatabases] = useState([]);
+  const [favoriteBuckets, setFavoriteBuckets] = useState([]);
+  const [selectedIsFavorite, setSelectedIsFavorite] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const searchTimeoutRef = useRef(null);
   const inputRef = useRef(null);
@@ -49,6 +57,24 @@ export default function TopBar({
     };
   }, []);
 
+  useEffect(() => {
+    if (selectedDatabase) {
+      setInputValue(selectedDatabase);
+    }
+  }, [selectedDatabase]);
+
+  useEffect(() => {
+    loadFavoriteBuckets();
+    // Refresh only when the active CouchDB connection changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connectionUrl]);
+
+  useEffect(() => {
+    refreshSelectedFavoriteState();
+    // Refresh only when the selected bucket or connection changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connectionUrl, selectedDatabase]);
+
   const loadRecentDatabases = async () => {
     try {
       const recent = await getRecentDatabases();
@@ -58,14 +84,37 @@ export default function TopBar({
     }
   };
 
+  const loadFavoriteBuckets = async () => {
+    if (!connectionUrl) {
+      setFavoriteBuckets([]);
+      return;
+    }
+
+    try {
+      const favorites = await getFavoriteBuckets(connectionUrl);
+      setFavoriteBuckets(favorites || []);
+    } catch (error) {
+      console.error('Failed to load favourite buckets:', error);
+    }
+  };
+
+  const refreshSelectedFavoriteState = async () => {
+    if (!connectionUrl || !selectedDatabase) {
+      setSelectedIsFavorite(false);
+      return;
+    }
+
+    try {
+      setSelectedIsFavorite(await isFavoriteBucket(connectionUrl, selectedDatabase));
+    } catch (error) {
+      console.error('Failed to check favourite bucket:', error);
+      setSelectedIsFavorite(false);
+    }
+  };
+
   const handleInputChange = (e) => {
     const value = e.target.value;
-    
-    // Only clear selection if user is actually typing something different
-    if (selectedDatabase && value !== selectedDatabase) {
-      onSelectDatabase('');
-    }
-    
+
     setInputValue(value);
     
     if (searchTimeoutRef.current) {
@@ -91,7 +140,7 @@ export default function TopBar({
   const handleSelect = async (db) => {
     // Close dropdown and clear input immediately for better UX
     setOpen(false);
-    setInputValue('');
+    setInputValue(db);
     setSearchResults([]);
     setIsSearching(false);
     
@@ -133,15 +182,24 @@ export default function TopBar({
   };
 
   const handleKeyDown = (e) => {
-    // Allow backspace to work properly
-    if (e.key === 'Backspace' && selectedDatabase) {
-      e.preventDefault();
-      onSelectDatabase('');
-      setInputValue('');
+    if (e.key === 'Escape') {
+      setOpen(false);
     }
   };
 
-  const displayValue = selectedDatabase || inputValue;
+  const handleToggleFavorite = async () => {
+    if (!connectionUrl || !selectedDatabase) {
+      return;
+    }
+
+    try {
+      const isFavorite = await toggleFavoriteBucket(connectionUrl, selectedDatabase);
+      setSelectedIsFavorite(isFavorite);
+      await loadFavoriteBuckets();
+    } catch (error) {
+      console.error('Failed to update favourite bucket:', error);
+    }
+  };
 
   const getStatusColor = () => {
     if (connectionStatus === 'connected') return 'bg-green-500';
@@ -174,7 +232,7 @@ export default function TopBar({
               <div className="relative w-64">
                 <Input
                   ref={inputRef}
-                  value={displayValue}
+                  value={inputValue}
                   onChange={handleInputChange}
                   onFocus={handleFocus}
                   onClick={handleClick}
@@ -190,7 +248,7 @@ export default function TopBar({
                   data-testid="database-selector"
                   autoComplete="off"
                 />
-                {selectedDatabase && (
+                {(selectedDatabase || inputValue) && (
                   <button
                     onClick={handleClear}
                     className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 z-10"
@@ -253,6 +311,41 @@ export default function TopBar({
               </Command>
             </PopoverContent>
           </Popover>
+
+          {selectedDatabase && (
+            <button
+              type="button"
+              onClick={handleToggleFavorite}
+              className={`h-9 max-w-56 inline-flex items-center gap-2 rounded-md border px-3 text-xs font-mono transition-colors ${
+                selectedIsFavorite
+                  ? 'border-amber-200 bg-amber-50 text-amber-700'
+                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+              }`}
+              title={selectedIsFavorite ? 'Remove from favourite buckets' : 'Add to favourite buckets'}
+              data-testid="toggle-favorite-bucket-btn"
+            >
+              <Star className={`h-4 w-4 ${selectedIsFavorite ? 'fill-current' : ''}`} />
+              <span className="truncate">{selectedDatabase}</span>
+            </button>
+          )}
+
+          <select
+            value=""
+            onChange={(event) => {
+              if (event.target.value) {
+                handleSelect(event.target.value);
+              }
+            }}
+            className="h-9 w-48 rounded-md border border-slate-200 bg-white px-3 text-xs text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+            data-testid="favorite-buckets-select"
+          >
+            <option value="">Favourite Buckets</option>
+            {favoriteBuckets.map((bucket) => (
+              <option key={bucket.id} value={bucket.name}>
+                {bucket.name}
+              </option>
+            ))}
+          </select>
 
           <div 
             className={`w-3 h-3 rounded-full ${getStatusColor()} shadow-sm`}

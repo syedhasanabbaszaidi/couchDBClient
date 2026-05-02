@@ -73,6 +73,44 @@ code {
     }
 }
 
+.json-toggle-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1rem;
+    height: 1rem;
+    margin-right: 0.25rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 2px;
+    background: #ffffff;
+    color: #0f172a;
+    font-weight: 700;
+    cursor: pointer;
+    user-select: none;
+    vertical-align: text-bottom;
+}
+
+.json-toggle-icon:hover {
+    border-color: #3b82f6;
+    color: #1d4ed8;
+}
+
+.json-expand-icon::after {
+    content: "+";
+    line-height: 1;
+}
+
+.json-collapse-icon::after {
+    content: "-";
+    line-height: 1;
+}
+
+.json-collapsed-content::after {
+    content: " ... ";
+    color: #64748b;
+    cursor: pointer;
+}
+
 @layer base {
     * {
         @apply border-border;

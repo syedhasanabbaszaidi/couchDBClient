@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "A minimal CouchDB client for managing databases and documents",
   "main": "main.js",
-  "author": "Hasan Abbas",
+  "author": "https://hasanabbas.in",
   "license": "MIT",
   "scripts": {
     "electron": "electron .",

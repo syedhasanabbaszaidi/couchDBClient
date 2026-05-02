@@ -4,8 +4,8 @@ import Sidebar from '@/components/Sidebar';
 import Editor from '@/components/Editor';
 import axios from 'axios';
 import { toast } from 'sonner';
-import { API, shouldUseDirectCouchConnection } from '@/lib/api';
-import { getTabState, saveTabState } from '@/lib/localDB';
+import { apiUrl, getApiBase, shouldUseDirectCouchConnection } from '@/lib/api';
+import { addRecentDocument, getTabState, saveTabState } from '@/lib/localDB';
 
 function buildCouchPath(baseUrl, ...segments) {
   const trimmedBaseUrl = baseUrl.replace(/\/+$/, '');
@@ -32,6 +32,8 @@ export default function Dashboard({
   const [selectedDatabase, setSelectedDatabase] = useState('');
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [documentContent, setDocumentContent] = useState(null);
+  const [documentError, setDocumentError] = useState(null);
+  const [openedDocumentsVersion, setOpenedDocumentsVersion] = useState(0);
   const [connectionStatus, setConnectionStatus] = useState('checking');
   const useDirect = shouldUseDirectCouchConnection(connection.url);
 
@@ -39,6 +41,8 @@ export default function Dashboard({
   useEffect(() => {
     loadTabState();
     checkConnection();
+    // Run once when a dashboard tab is mounted for this connection.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Save tab state when it changes
@@ -73,7 +77,12 @@ export default function Dashboard({
           timeout: 5000,
         });
       } else {
-        await axios.post(`${API}/couchdb/test-connection`, {
+        const apiBase = getApiBase();
+        if (!apiBase) {
+          throw new Error('Local CouchDB proxy is not available');
+        }
+
+        await axios.post(apiUrl('/couchdb/test-connection'), {
           url: connection.url,
           username: connection.username,
           password: connection.password,
@@ -86,6 +95,16 @@ export default function Dashboard({
       onConnectionError();
       toast.error('Connection lost or invalid');
     }
+  };
+
+  const handleSelectDatabase = (database) => {
+    if (database !== selectedDatabase) {
+      setSelectedDocument(null);
+      setDocumentContent(null);
+      setDocumentError(null);
+    }
+
+    setSelectedDatabase(database);
   };
 
   // Search databases function (called by TopBar)
@@ -101,7 +120,12 @@ export default function Dashboard({
           db.toLowerCase().includes(searchQuery.toLowerCase())
         );
       } else {
-        const response = await axios.get(`${API}/couchdb/databases`, {
+        const apiBase = getApiBase();
+        if (!apiBase) {
+          throw new Error('Local CouchDB proxy is not available');
+        }
+
+        const response = await axios.get(apiUrl('/couchdb/databases'), {
           params: {
             url: connection.url,
             username: connection.username,
@@ -152,7 +176,12 @@ export default function Dashboard({
         console.log('Search response:', response.data.rows?.length, 'results');
         return response.data.rows || [];
       } else {
-        const response = await axios.get(`${API}/couchdb/documents`, {
+        const apiBase = getApiBase();
+        if (!apiBase) {
+          throw new Error('Local CouchDB proxy is not available');
+        }
+
+        const response = await axios.get(apiUrl('/couchdb/documents'), {
           params: {
             url: connection.url,
             database: selectedDatabase,
@@ -180,6 +209,14 @@ export default function Dashboard({
       toast.error('No database selected');
       return;
     }
+
+    setSelectedDocument(docId);
+    setDocumentContent(null);
+    setDocumentError(null);
+
+    if (dbOverride && dbOverride !== selectedDatabase) {
+      setSelectedDatabase(dbOverride);
+    }
     
     try {
       if (useDirect) {
@@ -190,13 +227,15 @@ export default function Dashboard({
           }
         );
         setDocumentContent(response.data);
-        setSelectedDocument(docId);
-        // Update selected database if loading from different db
-        if (dbOverride && dbOverride !== selectedDatabase) {
-          setSelectedDatabase(dbOverride);
-        }
+        await addRecentDocument(targetDb, docId);
+        setOpenedDocumentsVersion((version) => version + 1);
       } else {
-        const response = await axios.get(`${API}/couchdb/document`, {
+        const apiBase = getApiBase();
+        if (!apiBase) {
+          throw new Error('Local CouchDB proxy is not available');
+        }
+
+        const response = await axios.get(apiUrl('/couchdb/document'), {
           params: {
             url: connection.url,
             database: targetDb,
@@ -207,16 +246,16 @@ export default function Dashboard({
         });
         if (response.data.success) {
           setDocumentContent(response.data.document);
-          setSelectedDocument(docId);
-          // Update selected database if loading from different db
-          if (dbOverride && dbOverride !== selectedDatabase) {
-            setSelectedDatabase(dbOverride);
-          }
+          await addRecentDocument(targetDb, docId);
+          setOpenedDocumentsVersion((version) => version + 1);
         }
       }
     } catch (error) {
       console.error('Failed to load document:', error);
-      toast.error('Failed to load document');
+      const message = `${docId} could not be opened`;
+      setDocumentContent(null);
+      setDocumentError(message);
+      toast.error(message);
     }
   };
 
@@ -234,10 +273,16 @@ export default function Dashboard({
           }
         );
         toast.success('Document saved successfully');
+        setDocumentError(null);
         setDocumentContent({ ...content, _rev: response.data.rev });
       } else {
+        const apiBase = getApiBase();
+        if (!apiBase) {
+          throw new Error('Local CouchDB proxy is not available');
+        }
+
         const response = await axios.put(
-          `${API}/couchdb/document`,
+          apiUrl('/couchdb/document'),
           { document: content },
           {
             params: {
@@ -251,6 +296,7 @@ export default function Dashboard({
         );
         if (response.data.success) {
           toast.success('Document saved successfully');
+          setDocumentError(null);
           setDocumentContent({ ...content, _rev: response.data.data.rev });
         }
       }
@@ -274,10 +320,16 @@ export default function Dashboard({
           }
         );
         toast.success('Document created successfully');
+        setDocumentError(null);
         loadDocument(response.data.id);
       } else {
+        const apiBase = getApiBase();
+        if (!apiBase) {
+          throw new Error('Local CouchDB proxy is not available');
+        }
+
         const response = await axios.post(
-          `${API}/couchdb/document`,
+          apiUrl('/couchdb/document'),
           { document: content },
           {
             params: {
@@ -290,6 +342,7 @@ export default function Dashboard({
         );
         if (response.data.success) {
           toast.success('Document created successfully');
+          setDocumentError(null);
           loadDocument(response.data.data.id);
         }
       }
@@ -312,8 +365,14 @@ export default function Dashboard({
         toast.success('Document deleted successfully');
         setSelectedDocument(null);
         setDocumentContent(null);
+        setDocumentError(null);
       } else {
-        const response = await axios.delete(`${API}/couchdb/document`, {
+        const apiBase = getApiBase();
+        if (!apiBase) {
+          throw new Error('Local CouchDB proxy is not available');
+        }
+
+        const response = await axios.delete(apiUrl('/couchdb/document'), {
           params: {
             url: connection.url,
             database: selectedDatabase,
@@ -327,6 +386,7 @@ export default function Dashboard({
           toast.success('Document deleted successfully');
           setSelectedDocument(null);
           setDocumentContent(null);
+          setDocumentError(null);
         }
       }
     } catch (error) {
@@ -339,7 +399,7 @@ export default function Dashboard({
     <div className="h-full w-full flex flex-col overflow-hidden" data-testid="dashboard">
       <TopBar
         selectedDatabase={selectedDatabase}
-        onSelectDatabase={setSelectedDatabase}
+        onSelectDatabase={handleSelectDatabase}
         onSearchDatabases={searchDatabases}
         onDisconnect={onDisconnect}
         connectionUrl={connection.url}
@@ -351,16 +411,19 @@ export default function Dashboard({
           selectedDocument={selectedDocument}
           onSelectDocument={loadDocument}
           onSearchDocuments={searchDocuments}
-          onSwitchDatabase={setSelectedDatabase}
+          onSwitchDatabase={handleSelectDatabase}
+          openedDocumentsVersion={openedDocumentsVersion}
           onNewDocument={() => {
             setSelectedDocument('new');
             setDocumentContent(null);
+            setDocumentError(null);
           }}
           database={selectedDatabase}
         />
         <Editor
           documentData={documentContent}
           documentId={selectedDocument}
+          documentError={documentError}
           onSave={saveDocument}
           onCreate={createDocument}
           onDelete={deleteDocument}

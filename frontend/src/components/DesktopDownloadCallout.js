@@ -29,7 +29,16 @@ export default function DesktopDownloadCallout({ entrypointPrefix }) {
             <div>
               <p className="text-sm font-semibold text-slate-900 font-heading">Prefer the desktop app?</p>
               <p className="text-sm text-slate-600">
-                Download {DESKTOP_RELEASE_LABEL} for easier repeat access on macOS or Windows. Built by Hasan Abbas.
+                Download {DESKTOP_RELEASE_LABEL} for easier repeat access on macOS or Windows. Built by{' '}
+                <a
+                  href="https://hasanabbas.in"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-blue-600 hover:text-blue-700 underline underline-offset-2"
+                >
+                  https://hasanabbas.in
+                </a>
+                .
               </p>
             </div>
             <div className="flex flex-wrap gap-2">

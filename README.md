@@ -1,7 +1,7 @@
 # CouchDB Client
 
 A minimal, developer-focused CouchDB client for managing databases and documents. Available as a web app and standalone desktop application for Windows and Mac.
-Built by Hasan Abbas.
+Built by [https://hasanabbas.in](https://hasanabbas.in).
 
 ## Features
 
@@ -267,7 +267,7 @@ The web app remains the main product surface. It now includes:
 - a top-right menu with `About` and `Settings`
 - desktop download prompts on the connection screen and in active sessions
 - a gated download form that asks for name and email before redirecting to DMG or EXE assets
-- credit placement for Hasan Abbas across the connection page, About dialog, download surfaces, and footer
+- credit placement for [https://hasanabbas.in](https://hasanabbas.in) across the connection page, About dialog, download surfaces, and footer
 
 ### Rollout Dependencies
 

@@ -109,7 +109,7 @@ export default function DownloadRequestDialog({
                 id="download-name"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                placeholder="Hasan Abbas"
+                placeholder="https://hasanabbas.in"
                 required
               />
             </div>
