@@ -4,7 +4,9 @@ import { Toaster } from '@/components/ui/sonner';
 import ConnectionScreen from '@/components/ConnectionScreen';
 import TabManager from '@/components/TabManager';
 import { ensureSessionStarted, trackAnalyticsEvent } from '@/lib/analytics';
+import { apiUrl } from '@/lib/api';
 import { isDesktopRuntime } from '@/lib/runtime';
+import axios from 'axios';
 
 function App() {
   const [connections, setConnections] = useState([]);
@@ -40,6 +42,9 @@ function App() {
       id: Date.now().toString(),
       name: connectionData.name || connectionData.url,
       url: connectionData.url,
+      targetUrl: connectionData.targetUrl || connectionData.url,
+      connectionType: connectionData.connectionType || 'direct',
+      tunnelId: connectionData.tunnelId || null,
       username: connectionData.username,
       password: connectionData.password,
       connectedAt: new Date().toISOString(),
@@ -52,6 +57,13 @@ function App() {
   };
 
   const handleCloseTab = (tabId) => {
+    const connection = connections.find(c => c.id === tabId);
+    if (connection?.tunnelId) {
+      axios.delete(apiUrl(`/ssh/tunnels/${encodeURIComponent(connection.tunnelId)}`)).catch(() => {
+        // Tunnel cleanup is best-effort when the tab is closed.
+      });
+    }
+
     const filtered = connections.filter(c => c.id !== tabId);
     setConnections(filtered);
     

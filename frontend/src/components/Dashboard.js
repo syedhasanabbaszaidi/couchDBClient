@@ -402,8 +402,8 @@ export default function Dashboard({
         onSelectDatabase={handleSelectDatabase}
         onSearchDatabases={searchDatabases}
         onDisconnect={onDisconnect}
-        connectionUrl={connection.url}
-        connectionMode={useDirect ? 'Direct' : 'Proxy'}
+        connectionUrl={connection.targetUrl || connection.url}
+        connectionMode={connection.connectionType === 'ssh' ? 'SSH' : (useDirect ? 'Direct' : 'Proxy')}
         connectionStatus={connectionStatus}
       />
       <div className="flex-1 flex overflow-hidden">

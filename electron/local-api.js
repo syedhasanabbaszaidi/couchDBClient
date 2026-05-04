@@ -1,11 +1,14 @@
 const http = require('http');
 const https = require('https');
+const net = require('net');
+const { Client: SshClient, utils: sshUtils } = require('ssh2');
 const { URL } = require('url');
 const path = require('path');
 
 const electronPackage = require(path.resolve(__dirname, 'package.json'));
 
 const REQUEST_TIMEOUT_MS = 10000;
+const activeTunnels = new Map();
 
 function getAuthHeader(username, password) {
   if (username && password) {
@@ -180,6 +183,193 @@ function requestJson(targetUrl, options = {}) {
   });
 }
 
+function createTunnelId() {
+  return `ssh_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+
+function closeTunnel(tunnelId) {
+  const tunnel = activeTunnels.get(tunnelId);
+
+  if (!tunnel) {
+    return false;
+  }
+
+  activeTunnels.delete(tunnelId);
+  tunnel.server.close();
+  tunnel.ssh.end();
+  return true;
+}
+
+function buildSshConfig(ssh = {}) {
+  const config = {
+    host: ssh.host,
+    port: Number(ssh.port || 22),
+    username: ssh.username,
+    readyTimeout: REQUEST_TIMEOUT_MS,
+    keepaliveInterval: 15000,
+  };
+
+  if (ssh.password) {
+    config.password = ssh.password;
+  }
+
+  if (process.env.SSH_AUTH_SOCK && ssh.useAgent !== false) {
+    config.agent = process.env.SSH_AUTH_SOCK;
+  }
+
+  if (ssh.privateKey) {
+    const parsedKey = sshUtils.parseKey(ssh.privateKey, ssh.passphrase || undefined);
+    const keyError = Array.isArray(parsedKey) ? parsedKey.find((key) => key instanceof Error) : parsedKey;
+
+    if (keyError instanceof Error) {
+      const isEncryptedKey =
+        /encrypted|passphrase/i.test(keyError.message || '') && !ssh.passphrase;
+
+      if (!isEncryptedKey || (!config.agent && !config.password)) {
+        throw Object.assign(
+          new Error(
+            isEncryptedKey
+              ? 'Private key is encrypted. Enter its passphrase, use SSH agent/keychain, or leave the key field empty.'
+              : `Private key could not be parsed: ${keyError.message}`
+          ),
+          { statusCode: 400 }
+        );
+      }
+    } else {
+      config.privateKey = ssh.privateKey;
+    }
+  }
+
+  if (ssh.passphrase) {
+    config.passphrase = ssh.passphrase;
+  }
+
+  if (!config.password && !config.privateKey && !config.agent) {
+    throw Object.assign(new Error('SSH password, private key, or SSH agent/keychain is required'), {
+      statusCode: 400,
+    });
+  }
+
+  return config;
+}
+
+function validateSshRequest(body) {
+  if (!body.couchdbUrl) {
+    throw Object.assign(new Error('CouchDB URL is required'), { statusCode: 400 });
+  }
+
+  if (!body.ssh?.host) {
+    throw Object.assign(new Error('SSH host is required'), { statusCode: 400 });
+  }
+
+  if (!body.ssh?.username) {
+    throw Object.assign(new Error('SSH username is required'), { statusCode: 400 });
+  }
+}
+
+function createSshTargetError(targetUrl, error) {
+  const target = `${targetUrl.protocol}//${targetUrl.host}`;
+  const detail = error?.message ? ` (${error.message})` : '';
+
+  return Object.assign(
+    new Error(
+      `SSH tunnel connected, but CouchDB is not reachable at ${target} from the SSH server${detail}. Check the CouchDB URL as seen after logging into the SSH server.`
+    ),
+    { statusCode: 502 }
+  );
+}
+
+function createSshTunnel({ couchdbUrl, ssh }) {
+  return new Promise((resolve, reject) => {
+    let targetUrl;
+
+    try {
+      targetUrl = new URL(couchdbUrl);
+    } catch (_error) {
+      reject(Object.assign(new Error('Invalid CouchDB URL'), { statusCode: 400 }));
+      return;
+    }
+
+    if (!['http:', 'https:'].includes(targetUrl.protocol)) {
+      reject(Object.assign(new Error('Only http and https CouchDB URLs are supported'), { statusCode: 400 }));
+      return;
+    }
+
+    const targetHost = targetUrl.hostname;
+    const targetPort = Number(targetUrl.port || (targetUrl.protocol === 'https:' ? 443 : 80));
+    const sshClient = new SshClient();
+    const server = net.createServer((socket) => {
+      socket.on('error', () => {});
+
+      sshClient.forwardOut(
+        socket.remoteAddress || '127.0.0.1',
+        socket.remotePort || 0,
+        targetHost,
+        targetPort,
+        (error, stream) => {
+          if (error) {
+            socket.end();
+            socket.destroy();
+            return;
+          }
+
+          stream.on('error', () => {
+            socket.destroy();
+          });
+          socket.pipe(stream);
+          stream.pipe(socket);
+        }
+      );
+    });
+
+    let settled = false;
+
+    function fail(error) {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      server.close();
+      sshClient.end();
+      reject(error);
+    }
+
+    sshClient
+      .on('ready', () => {
+        server.listen(0, '127.0.0.1', () => {
+          const address = server.address();
+          const tunnelId = createTunnelId();
+          const localUrl = `${targetUrl.protocol}//127.0.0.1:${address.port}`;
+          const tunnel = {
+            id: tunnelId,
+            ssh: sshClient,
+            server,
+            createdAt: Date.now(),
+            localUrl,
+            targetUrl: `${targetUrl.protocol}//${targetUrl.host}`,
+            parsedTargetUrl: targetUrl,
+          };
+
+          activeTunnels.set(tunnelId, tunnel);
+          settled = true;
+          resolve(tunnel);
+        });
+      })
+      .on('error', fail)
+      .on('end', () => {
+        for (const [id, tunnel] of activeTunnels.entries()) {
+          if (tunnel.ssh === sshClient) {
+            activeTunnels.delete(id);
+          }
+        }
+      })
+      .connect(buildSshConfig(ssh));
+
+    server.on('error', fail);
+  });
+}
+
 function getReleaseCatalog() {
   const version = electronPackage.version;
   const releaseTag = `v${version}`;
@@ -227,6 +417,43 @@ function getReleaseCatalog() {
 }
 
 async function handleCouchRequest(req, res, route) {
+  if (route.pathname === '/api/ssh/tunnels' && req.method === 'POST') {
+    const body = await readJsonBody(req);
+    validateSshRequest(body);
+
+    const tunnel = await createSshTunnel({
+      couchdbUrl: body.couchdbUrl,
+      ssh: body.ssh,
+    });
+
+    try {
+      const headers = getAuthHeader(body.username, body.password);
+      const data = await requestJson(tunnel.localUrl, { headers });
+      await requestJson(buildCouchUrl(tunnel.localUrl, '_all_dbs'), { headers });
+      sendJson(req, res, 200, {
+        success: true,
+        tunnelId: tunnel.id,
+        url: tunnel.localUrl,
+        targetUrl: tunnel.targetUrl,
+        data,
+      });
+    } catch (error) {
+      closeTunnel(tunnel.id);
+      throw createSshTargetError(tunnel.parsedTargetUrl, error);
+    }
+
+    return true;
+  }
+
+  if (route.pathname.startsWith('/api/ssh/tunnels/') && req.method === 'DELETE') {
+    const tunnelId = decodeURIComponent(route.pathname.replace('/api/ssh/tunnels/', ''));
+    sendJson(req, res, 200, {
+      success: true,
+      closed: closeTunnel(tunnelId),
+    });
+    return true;
+  }
+
   if (route.pathname === '/api/couchdb/test-connection' && req.method === 'POST') {
     const body = await readJsonBody(req);
     const headers = getAuthHeader(body.username, body.password);
@@ -408,7 +635,12 @@ function startLocalApiServer() {
       const address = server.address();
       resolve({
         url: `http://127.0.0.1:${address.port}`,
-        close: () => server.close(),
+        close: () => {
+          for (const tunnelId of activeTunnels.keys()) {
+            closeTunnel(tunnelId);
+          }
+          server.close();
+        },
       });
     });
   });

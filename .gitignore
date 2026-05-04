@@ -6,6 +6,7 @@ frontend/build/
 electron/dist/
 electron/good/
 electron/dist_old/
+electron/dist_2*/
 electron/frontend-build/
 
 # Environment files (contain secrets)

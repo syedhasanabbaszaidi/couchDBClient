@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
-import { Database, Plug, Trash2 } from 'lucide-react';
+import { useRef, useState, useEffect } from 'react';
+import { Database, FileKey, Plug, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import axios from 'axios';
 import ProductActions from '@/components/ProductActions';
@@ -21,9 +22,18 @@ export default function ConnectionScreen({ onConnect }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [connectionType, setConnectionType] = useState('direct');
+  const [sshHost, setSshHost] = useState('');
+  const [sshPort, setSshPort] = useState('22');
+  const [sshUsername, setSshUsername] = useState('');
+  const [sshPassword, setSshPassword] = useState('');
+  const [sshPrivateKey, setSshPrivateKey] = useState('');
+  const [sshPrivateKeyFileName, setSshPrivateKeyFileName] = useState('');
+  const [sshPassphrase, setSshPassphrase] = useState('');
   const [loading, setLoading] = useState(false);
   const [savedConnections, setSavedConnections] = useState([]);
   const [recentConnections, setRecentConnections] = useState([]);
+  const privateKeyFileInputRef = useRef(null);
 
   useEffect(() => {
     loadConnections();
@@ -47,7 +57,7 @@ export default function ConnectionScreen({ onConnect }) {
 
     try {
       const useDirect = shouldUseDirectCouchConnection(url);
-      const connectionMode = useDirect ? 'direct' : 'proxy';
+      const connectionMode = connectionType === 'ssh' ? 'ssh' : (useDirect ? 'direct' : 'proxy');
 
       await trackAnalyticsEvent('connection_attempted', {
         connectionMode,
@@ -58,7 +68,60 @@ export default function ConnectionScreen({ onConnect }) {
 
       const normalizedUrl = url.trim().replace(/\/+$/, '');
       
-      if (useDirect) {
+      if (connectionType === 'ssh') {
+        const apiBase = getApiBase();
+        if (!apiBase) {
+          throw new Error('Local SSH tunnel support is only available in the desktop app.');
+        }
+
+        const response = await axios.post(apiUrl('/ssh/tunnels'), {
+          couchdbUrl: normalizedUrl,
+          username: username || undefined,
+          password: password || undefined,
+          ssh: {
+            host: sshHost.trim(),
+            port: sshPort || 22,
+            username: sshUsername.trim(),
+            password: sshPassword || undefined,
+            privateKey: sshPrivateKey.trim() || undefined,
+            passphrase: sshPassphrase || undefined,
+            useAgent: true,
+          },
+        });
+
+        if (response.data.success) {
+          const tabName = name || `${sshHost.trim()} -> ${normalizedUrl}`;
+          toast.success('Connected through SSH tunnel!');
+          await trackAnalyticsEvent('connection_succeeded', {
+            connectionMode,
+          }, {
+            entrypoint: 'connection-screen',
+          });
+          onConnect({
+            url: response.data.url,
+            targetUrl: normalizedUrl,
+            connectionType: 'ssh',
+            tunnelId: response.data.tunnelId,
+            username,
+            password,
+            name: tabName,
+          });
+          await addRecentConnection({
+            url: normalizedUrl,
+            username,
+            password,
+            name: tabName,
+            connectionType: 'ssh',
+            sshHost: sshHost.trim(),
+            sshPort,
+            sshUsername: sshUsername.trim(),
+            sshPassword,
+            sshPrivateKey,
+            sshPrivateKeyFileName,
+            sshPassphrase,
+          });
+        }
+      } else if (useDirect) {
         const headers = {};
         if (username && password) {
           const credentials = `${username}:${password}`;
@@ -76,8 +139,8 @@ export default function ConnectionScreen({ onConnect }) {
           }, {
             entrypoint: 'connection-screen',
           });
-          onConnect({ url: normalizedUrl, username, password, name: name || normalizedUrl });
-          await addRecentConnection({ url: normalizedUrl, username, password, name: name || normalizedUrl });
+          onConnect({ url: normalizedUrl, targetUrl: normalizedUrl, connectionType: 'direct', username, password, name: name || normalizedUrl });
+          await addRecentConnection({ url: normalizedUrl, username, password, name: name || normalizedUrl, connectionType: 'direct' });
         }
       } else {
         const apiBase = getApiBase();
@@ -98,8 +161,8 @@ export default function ConnectionScreen({ onConnect }) {
           }, {
             entrypoint: 'connection-screen',
           });
-          onConnect({ url: normalizedUrl, username, password, name: name || normalizedUrl });
-          await addRecentConnection({ url: normalizedUrl, username, password, name: name || normalizedUrl });
+          onConnect({ url: normalizedUrl, targetUrl: normalizedUrl, connectionType: 'direct', username, password, name: name || normalizedUrl });
+          await addRecentConnection({ url: normalizedUrl, username, password, name: name || normalizedUrl, connectionType: 'direct' });
         }
       }
     } catch (error) {
@@ -109,7 +172,7 @@ export default function ConnectionScreen({ onConnect }) {
                        error.message || 
                        'Failed to connect to CouchDB. Make sure CouchDB is running and accessible.';
       await trackAnalyticsEvent('connection_failed', {
-        connectionMode: shouldUseDirectCouchConnection(url) ? 'direct' : 'proxy',
+        connectionMode: connectionType === 'ssh' ? 'ssh' : (shouldUseDirectCouchConnection(url) ? 'direct' : 'proxy'),
         errorType: error.response?.status ? 'http_error' : 'network_error',
       }, {
         entrypoint: 'connection-screen',
@@ -128,7 +191,21 @@ export default function ConnectionScreen({ onConnect }) {
     
     try {
       const normalizedUrl = url.trim().replace(/\/+$/, '');
-      await saveConnectionToDB({ id: Date.now().toString(), name, url: normalizedUrl, username, password });
+      await saveConnectionToDB({
+        id: Date.now().toString(),
+        name,
+        url: normalizedUrl,
+        username,
+        password,
+        connectionType,
+        sshHost: sshHost.trim(),
+        sshPort,
+        sshUsername: sshUsername.trim(),
+        sshPassword,
+        sshPrivateKey,
+        sshPrivateKeyFileName,
+        sshPassphrase,
+      });
       await loadConnections();
       toast.success('Connection saved!');
     } catch (error) {
@@ -141,6 +218,41 @@ export default function ConnectionScreen({ onConnect }) {
     setUsername(conn.username || '');
     setPassword(conn.password || '');
     setName(conn.name || '');
+    setConnectionType(conn.connectionType || 'direct');
+    setSshHost(conn.sshHost || '');
+    setSshPort(conn.sshPort || '22');
+    setSshUsername(conn.sshUsername || '');
+    setSshPassword(conn.sshPassword || '');
+    setSshPrivateKey(conn.sshPrivateKey || '');
+    setSshPrivateKeyFileName(conn.sshPrivateKeyFileName || '');
+    setSshPassphrase(conn.sshPassphrase || '');
+  };
+
+  const handlePrivateKeyFileChange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      setSshPrivateKey(text);
+      setSshPrivateKeyFileName(file.name);
+      toast.success('Private key loaded');
+    } catch (error) {
+      console.error('Failed to read private key file:', error);
+      toast.error('Failed to read private key file');
+    } finally {
+      event.target.value = '';
+    }
+  };
+
+  const handleClearPrivateKey = () => {
+    setSshPrivateKey('');
+    setSshPrivateKeyFileName('');
+    if (privateKeyFileInputRef.current) {
+      privateKeyFileInputRef.current.value = '';
+    }
   };
 
   const handleDeleteSaved = async (id) => {
@@ -179,7 +291,7 @@ export default function ConnectionScreen({ onConnect }) {
 
       <div className="flex flex-1 items-center justify-center p-6">
         <div className="w-full max-w-5xl bg-white border border-slate-200 shadow-xl shadow-slate-200/50 p-8 rounded-lg">
-        <div className="flex items-center gap-3 mb-6">
+	        <div className="flex items-center gap-3 mb-6">
           <div className="p-2 bg-slate-900 rounded-md">
             <Database className="w-6 h-6 text-white" />
           </div>
@@ -187,13 +299,40 @@ export default function ConnectionScreen({ onConnect }) {
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 font-heading">CouchDB Client</h1>
             <p className="text-sm text-slate-500 font-body">Connect to your database and keep desktop access close by</p>
           </div>
-        </div>
+	        </div>
 
-        <div className="grid grid-cols-2 gap-6">
-          <div>
-            <form onSubmit={handleConnect} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name" className="text-sm font-medium text-slate-700">Connection Name (optional)</Label>
+	        <div className="grid grid-cols-2 gap-6">
+	          <div>
+	            <form onSubmit={handleConnect} className="space-y-4">
+	              <div className="grid grid-cols-2 rounded-md border border-slate-200 bg-slate-50 p-1 text-sm">
+	                <button
+	                  type="button"
+	                  onClick={() => setConnectionType('direct')}
+	                  className={`rounded px-3 py-2 font-medium transition-colors ${
+	                    connectionType === 'direct'
+	                      ? 'bg-white text-slate-900 shadow-sm'
+	                      : 'text-slate-600 hover:text-slate-900'
+	                  }`}
+	                  data-testid="connection-type-direct"
+	                >
+	                  Direct / Public
+	                </button>
+	                <button
+	                  type="button"
+	                  onClick={() => setConnectionType('ssh')}
+	                  className={`rounded px-3 py-2 font-medium transition-colors ${
+	                    connectionType === 'ssh'
+	                      ? 'bg-white text-slate-900 shadow-sm'
+	                      : 'text-slate-600 hover:text-slate-900'
+	                  }`}
+	                  data-testid="connection-type-ssh"
+	                >
+	                  SSH Tunnel
+	                </button>
+	              </div>
+
+	              <div className="space-y-2">
+	                <Label htmlFor="name" className="text-sm font-medium text-slate-700">Connection Name (optional)</Label>
                 <Input
                   id="name"
                   type="text"
@@ -206,18 +345,146 @@ export default function ConnectionScreen({ onConnect }) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="url" className="text-sm font-medium text-slate-700">Host URL</Label>
-                <Input
-                  id="url"
-                  type="text"
-                  placeholder="http://localhost:9004"
+	                <Label htmlFor="url" className="text-sm font-medium text-slate-700">
+	                  {connectionType === 'ssh' ? 'CouchDB URL from SSH server' : 'Host URL'}
+	                </Label>
+	                <Input
+	                  id="url"
+	                  type="text"
+	                  placeholder={connectionType === 'ssh' ? 'http://localhost:5984' : 'http://localhost:6003'}
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   required
                   data-testid="connection-url-input"
                   className="h-9"
                 />
-              </div>
+	              </div>
+
+	              {connectionType === 'ssh' && (
+	                <div className="rounded-md border border-slate-200 bg-slate-50 p-4 space-y-3">
+	                  <div className="grid grid-cols-3 gap-3">
+	                    <div className="col-span-2 space-y-2">
+	                      <Label htmlFor="ssh-host" className="text-sm font-medium text-slate-700">SSH Host</Label>
+	                      <Input
+	                        id="ssh-host"
+	                        type="text"
+	                        placeholder="server.example.com"
+	                        value={sshHost}
+	                        onChange={(e) => setSshHost(e.target.value)}
+	                        required={connectionType === 'ssh'}
+	                        data-testid="ssh-host-input"
+	                        className="h-9"
+	                      />
+	                    </div>
+	                    <div className="space-y-2">
+	                      <Label htmlFor="ssh-port" className="text-sm font-medium text-slate-700">Port</Label>
+	                      <Input
+	                        id="ssh-port"
+	                        type="number"
+	                        min="1"
+	                        max="65535"
+	                        value={sshPort}
+	                        onChange={(e) => setSshPort(e.target.value)}
+	                        data-testid="ssh-port-input"
+	                        className="h-9"
+	                      />
+	                    </div>
+	                  </div>
+
+	                  <div className="grid grid-cols-2 gap-3">
+	                    <div className="space-y-2">
+	                      <Label htmlFor="ssh-username" className="text-sm font-medium text-slate-700">SSH Username</Label>
+	                      <Input
+	                        id="ssh-username"
+	                        type="text"
+	                        value={sshUsername}
+	                        onChange={(e) => setSshUsername(e.target.value)}
+	                        required={connectionType === 'ssh'}
+	                        data-testid="ssh-username-input"
+	                        className="h-9"
+	                      />
+	                    </div>
+	                    <div className="space-y-2">
+	                      <Label htmlFor="ssh-password" className="text-sm font-medium text-slate-700">SSH Password (optional)</Label>
+	                      <Input
+	                        id="ssh-password"
+	                        type="password"
+	                        value={sshPassword}
+	                        onChange={(e) => setSshPassword(e.target.value)}
+	                        data-testid="ssh-password-input"
+	                        className="h-9"
+	                      />
+	                    </div>
+	                  </div>
+
+	                  <div className="space-y-2">
+	                    <div className="flex items-center justify-between gap-3">
+	                      <Label htmlFor="ssh-private-key" className="text-sm font-medium text-slate-700">Private Key (optional)</Label>
+	                      <div className="flex items-center gap-2">
+	                        {sshPrivateKey && (
+	                          <Button
+	                            type="button"
+	                            variant="ghost"
+	                            size="sm"
+	                            onClick={handleClearPrivateKey}
+	                            className="h-7 px-2 text-slate-600"
+	                            data-testid="ssh-clear-private-key-btn"
+	                          >
+	                            <X className="w-4 h-4" />
+	                            Clear
+	                          </Button>
+	                        )}
+	                        <Button
+	                          type="button"
+	                          variant="outline"
+	                          size="sm"
+	                          onClick={() => privateKeyFileInputRef.current?.click()}
+	                          className="h-7 px-2"
+	                          data-testid="ssh-private-key-file-btn"
+	                        >
+	                          <FileKey className="w-4 h-4" />
+	                          Choose Key
+	                        </Button>
+	                      </div>
+	                    </div>
+	                    <input
+	                      ref={privateKeyFileInputRef}
+	                      type="file"
+	                      className="hidden"
+	                      onChange={handlePrivateKeyFileChange}
+	                      data-testid="ssh-private-key-file-input"
+	                    />
+	                    {sshPrivateKeyFileName && (
+	                      <div className="truncate rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600">
+	                        {sshPrivateKeyFileName}
+	                      </div>
+	                    )}
+	                    <Textarea
+	                      id="ssh-private-key"
+	                      placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
+	                      value={sshPrivateKey}
+	                      onChange={(e) => {
+	                        setSshPrivateKey(e.target.value);
+	                        setSshPrivateKeyFileName('');
+	                      }}
+	                      data-testid="ssh-private-key-input"
+	                      className="min-h-28 font-mono text-xs"
+	                    />
+	                  </div>
+
+	                  <div className="space-y-2">
+	                    <Label htmlFor="ssh-passphrase" className="text-sm font-medium text-slate-700">Private Key Passphrase (if needed)</Label>
+	                    <Input
+	                      id="ssh-passphrase"
+	                      type="password"
+	                      value={sshPassphrase}
+	                      onChange={(e) => setSshPassphrase(e.target.value)}
+	                      data-testid="ssh-passphrase-input"
+	                      className="h-9"
+	                    />
+	                  </div>
+	                </div>
+	              )}
 
               <div className="space-y-2">
                 <Label htmlFor="username" className="text-sm font-medium text-slate-700">Username</Label>
@@ -288,10 +555,15 @@ export default function ConnectionScreen({ onConnect }) {
                         onClick={() => handleLoadConnection(conn)}
                         className="flex-1 text-left"
                         data-testid={`saved-connection-${conn.id}`}
-                      >
-                        <div className="font-medium text-slate-900">{conn.name}</div>
-                        <div className="text-xs text-slate-500 font-mono">{conn.url}</div>
-                      </button>
+	                      >
+	                        <div className="font-medium text-slate-900">{conn.name}</div>
+	                        <div className="text-xs text-slate-500 font-mono">{conn.url}</div>
+	                        {conn.connectionType === 'ssh' && (
+	                          <div className="text-xs text-orange-600 mt-1">
+	                            SSH: {conn.sshUsername}@{conn.sshHost}:{conn.sshPort || 22}
+	                          </div>
+	                        )}
+	                      </button>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -318,9 +590,14 @@ export default function ConnectionScreen({ onConnect }) {
                       className="w-full text-left px-3 py-2 text-sm rounded-md border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-colors"
                       data-testid={`recent-connection-${idx}`}
                     >
-                      <div className="font-mono text-slate-900">{conn.url}</div>
-                      {conn.username && <div className="text-xs text-slate-500 mt-1">{conn.username}</div>}
-                    </button>
+	                      <div className="font-mono text-slate-900">{conn.url}</div>
+	                      {conn.username && <div className="text-xs text-slate-500 mt-1">{conn.username}</div>}
+	                      {conn.connectionType === 'ssh' && (
+	                        <div className="text-xs text-orange-600 mt-1">
+	                          SSH: {conn.sshUsername}@{conn.sshHost}:{conn.sshPort || 22}
+	                        </div>
+	                      )}
+	                    </button>
                   ))}
                 </div>
               </div>
