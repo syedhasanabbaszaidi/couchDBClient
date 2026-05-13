@@ -95,8 +95,8 @@ export default function ProductActions({ entrypointPrefix, compact = false }) {
               >
                 Hasan Abbas
               </a>
-              .Reach him by clicking his name or visiting his website. The web app is free to use and open source on GitHub.
-              The web app gives you instant access in the browser, while the desktop apps provide easier repeat access
+              .Reach him by clicking his name or visiting his website. The web app is free to use and open source on GitHub <a href='https://github.com/syedhasanabbaszaidi/couchDBClient'>couchdb-client</a>. 
+              Please feel free to contribute or report issues. The web app gives you instant access in the browser, while the desktop apps provide easier repeat access
               on macOS and Windows.
             </p>
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
