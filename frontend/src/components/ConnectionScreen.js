@@ -271,17 +271,7 @@ export default function ConnectionScreen({ onConnect }) {
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-6">
           <div>
             <p className="text-sm font-semibold text-slate-900 font-heading">CouchDB Client</p>
-            <p className="text-xs text-slate-500">
-              Browser workspace and desktop companion by{' '}
-              <a
-                href="https://hasanabbas.in"
-                target="_blank"
-                rel="noreferrer"
-                className="text-blue-600 hover:text-blue-700 underline underline-offset-2"
-              >
-                https://hasanabbas.in
-              </a>
-            </p>
+            
           </div>
           <div className="flex items-center gap-2">
             <ProductActions entrypointPrefix="connection-header" />

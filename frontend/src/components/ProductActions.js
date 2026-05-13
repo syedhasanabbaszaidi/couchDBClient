@@ -72,11 +72,6 @@ export default function ProductActions({ entrypointPrefix, compact = false }) {
             Settings
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem asChild className="text-slate-500">
-            <a href="https://hasanabbas.in" target="_blank" rel="noreferrer">
-              Built by https://hasanabbas.in
-            </a>
-          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -98,9 +93,9 @@ export default function ProductActions({ entrypointPrefix, compact = false }) {
                 rel="noreferrer"
                 className="font-medium text-blue-600 hover:text-blue-700 underline underline-offset-2"
               >
-                https://hasanabbas.in
+                Hasan Abbas
               </a>
-              .
+              .Reach him by clicking his name or visiting his website. The web app is free to use and open source on GitHub.
               The web app gives you instant access in the browser, while the desktop apps provide easier repeat access
               on macOS and Windows.
             </p>

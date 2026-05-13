@@ -117,7 +117,7 @@ function App() {
           rel="noreferrer"
           className="text-blue-600 hover:text-blue-700 underline underline-offset-2"
         >
-          https://hasanabbas.in
+          Hasan Abbas
         </a>
       </footer>
       <Toaster position="top-right" />
