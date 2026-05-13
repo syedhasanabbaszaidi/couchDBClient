@@ -41,7 +41,7 @@ export default function ProductActions({ entrypointPrefix, compact = false }) {
           className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
         >
           <Download className="mr-2 h-4 w-4" />
-          Download App
+          Download App 
         </Button>
       )}
 
@@ -95,7 +95,10 @@ export default function ProductActions({ entrypointPrefix, compact = false }) {
               >
                 Hasan Abbas
               </a>
-              .Reach him by clicking his name or visiting his website. The web app is free to use and open source on GitHub <a href='https://github.com/syedhasanabbaszaidi/couchDBClient'>couchdb-client</a>. 
+              .Reach him by clicking his name or visiting his website. The web app is free to use and open source on GitHub 
+              <a href='https://github.com/syedhasanabbaszaidi/couchDBClient' target="_new"
+                rel="noreferrer"
+                className="font-medium text-blue-600 hover:text-blue-700 underline underline-offset-2">couchdb-client</a>. 
               Please feel free to contribute or report issues. The web app gives you instant access in the browser, while the desktop apps provide easier repeat access
               on macOS and Windows.
             </p>
