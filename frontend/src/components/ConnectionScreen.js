@@ -307,7 +307,7 @@ export default function ConnectionScreen({ onConnect }) {
 	                >
 	                  Direct / Public
 	                </button>
-	                <button
+	                {/* <button
 	                  type="button"
 	                  onClick={() => setConnectionType('ssh')}
 	                  className={`rounded px-3 py-2 font-medium transition-colors ${
@@ -318,7 +318,7 @@ export default function ConnectionScreen({ onConnect }) {
 	                  data-testid="connection-type-ssh"
 	                >
 	                  SSH Tunnel
-	                </button>
+	                </button> */}
 	              </div>
 
 	              <div className="space-y-2">
